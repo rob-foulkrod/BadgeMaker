@@ -1,0 +1,94 @@
+﻿@page "/generate"
+@rendermode InteractiveServer
+@inject OpenApiConfig config
+@using Azure;
+@using Azure.AI.OpenAI;
+@using static System.Environment;
+
+<PageTitle>Badge Generator</PageTitle>
+
+<h1>Badge Generator</h1>
+
+<p>Describe the badge that you would like to see. We are using a service that will restrict to 3 calls a minute, so be patient</p>
+
+<FluentStack Orientation="Orientation.Vertical">
+
+    <FluentTextArea Label="Prompt" id="badgePrompt" class="form-control" Value="@userPrompt" ValueChanged="@((string val) => userPrompt = val)"></FluentTextArea>
+
+
+    <FluentButton class="btn btn-primary" @onclick="GenerateBadge">Generate Badge</FluentButton>
+</FluentStack>
+
+
+@if (imageUris == null)
+{
+    <p><em>@message</em></p>
+}
+else if (imageUris != null)
+{
+                //wrap in div to allow for multiple images
+    <div>
+        @foreach (var uri in imageUris)
+        {
+            <img src="@uri" alt="Generated Image" />
+        }
+    </div>
+}
+
+@code {
+    bool running = false;
+    string[]? imageUris = null;
+    string userPrompt = "";
+    string message = "";
+
+    private async Task GenerateBadge(MouseEventArgs e)
+    {
+
+        imageUris = null;
+
+        if (String.IsNullOrWhiteSpace(userPrompt))
+        {
+            message = "Please enter a prompt";
+            return;
+        }
+        else
+        {
+            message = "Loading...";
+        }
+
+        string endpoint = config.endpoint;
+        string key = config.apiKey;
+
+        OpenAIClient client = new OpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
+        try
+        {
+            Response<ImageGenerations> imageGenerations = await client.GetImageGenerationsAsync(
+                new ImageGenerationOptions()
+                    {
+                        DeploymentName = config.deployment,
+                        Prompt = "We are creating a collection of badges for a training course. Every day needs it own badge. I will provide a description of the badge and you will create a badge image. Every badge will be round and contain an image and the badge number. The badges will be created in Pixar animation. --- " + userPrompt,
+                        Size = ImageSize.Size1024x1024,
+                        ImageCount = 1
+                    });
+
+            // Image Generations responses provide URLs you can use to retrieve requested images
+            imageUris = imageGenerations.Value.Data.Select(data => data.Url.ToString()).ToArray();
+            message = "";
+        }
+        catch (RequestFailedException ex) when (ex.Status == 429)
+        {
+            message = "You have made too many requests. Please wait a while before trying again.";
+        }
+        catch (RequestFailedException ex) when (ex.Status == 400)
+        {
+            message = "Your request was rejected as a result of our safety system. Your prompt may contain text that is not allowed by our safety system.";
+        }
+        catch (Exception ex)
+        {
+            message = $"An error occurred: {ex.Message}";
+        }
+
+        running = false;
+    }
+
+}

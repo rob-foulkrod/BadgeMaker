@@ -1,0 +1,46 @@
+﻿@inherits LayoutComponentBase
+<FluentLayout>
+    <FluentHeader>
+        BadgeMaker
+    </FluentHeader>
+    <FluentStack Class="main" Orientation="Orientation.Horizontal" Width="100%">
+        <NavMenu />
+        <FluentBodyContent>
+            <div class="content">
+                @Body
+            </div>
+        </FluentBodyContent>
+
+        @if (!string.IsNullOrEmpty(SystemMessages.ConfigurationWarning))
+        {
+
+            <FluentMessageBar Title="ConfigurationWarning" Intent="@MessageIntent.Warning">
+                Configuration Warning?: @SystemMessages.ConfigurationWarning
+            </FluentMessageBar>
+
+        }
+
+
+    </FluentStack>
+    <FluentFooter>
+
+
+
+
+        <div class="link1">
+            <a href="https://www.fluentui-blazor.net" target="_blank">Documentation and demos</a>
+        </div>
+        <div class="link2">
+            <a href="https://learn.microsoft.com/en-us/aspnet/core/blazor" target="_blank">About Blazor</a>
+        </div>
+    </FluentFooter>
+</FluentLayout>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+
+
