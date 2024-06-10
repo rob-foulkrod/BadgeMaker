@@ -1,9 +1,12 @@
 ﻿@page "/generate"
 @rendermode InteractiveServer
 @inject OpenApiConfig config
+@inject ServiceBusConfig sbConfig
 @using Azure;
 @using Azure.AI.OpenAI;
+@using Azure.Messaging.ServiceBus
 @using static System.Environment;
+@using System.Text.Json
 
 <PageTitle>Badge Generator</PageTitle>
 
@@ -11,40 +14,57 @@
 
 <p>Describe the badge that you would like to see. We are using a service that will restrict to 3 calls a minute, so be patient</p>
 
+
 <FluentStack Orientation="Orientation.Vertical">
-
-    <FluentTextArea Label="Prompt" id="badgePrompt" class="form-control" Value="@userPrompt" ValueChanged="@((string val) => userPrompt = val)"></FluentTextArea>
-
-
+    <FluentTextArea Label="Prompt" id="badgePrompt" class="form-control" Value="@userPrompt" ValueChanged="@((string val) => userPrompt = val)" Rows="3" Cols="100" Resize="TextAreaResize.Both"></FluentTextArea>
     <FluentButton class="btn btn-primary" @onclick="GenerateBadge">Generate Badge</FluentButton>
 </FluentStack>
 
 
-@if (imageUris == null)
+
+
+@if (imageUri == null)
 {
-    <p><em>@message</em></p>
+    if (message == loadingMessage)
+    {
+        
+        <FluentProgressRing></FluentProgressRing>
+        <p><em>@message</em></p>
+    }
+    else
+    {
+        <p><em>@message</em></p>
+    }
 }
-else if (imageUris != null)
+else if (imageUri != null)
 {
-                //wrap in div to allow for multiple images
-    <div>
-        @foreach (var uri in imageUris)
+    //wrap in div to allow for multiple images
+    <FluentStack Orientation="Orientation.Horizontal">
+
+        <img src="@imageUri" alt="Generated Image" width="512" height="512" />
+
+
+        @if (sbConfig.IsConfigured)
         {
-            <img src="@uri" alt="Generated Image" />
+            <div>
+                <p>Click the Approve Button, if you approve this new badge.</p>
+                <FluentButton class="btn btn-primary" @onclick="ApproveImage">Approve</FluentButton>
+            </div>
         }
-    </div>
+    </FluentStack>
 }
 
 @code {
-    bool running = false;
-    string[]? imageUris = null;
+    string? imageUri = null;
     string userPrompt = "";
     string message = "";
+    const string loadingMessage = "loading...";
+
 
     private async Task GenerateBadge(MouseEventArgs e)
     {
 
-        imageUris = null;
+        imageUri = null;
 
         if (String.IsNullOrWhiteSpace(userPrompt))
         {
@@ -53,7 +73,7 @@ else if (imageUris != null)
         }
         else
         {
-            message = "Loading...";
+            message = loadingMessage;
         }
 
         string endpoint = config.endpoint;
@@ -72,7 +92,7 @@ else if (imageUris != null)
                     });
 
             // Image Generations responses provide URLs you can use to retrieve requested images
-            imageUris = imageGenerations.Value.Data.Select(data => data.Url.ToString()).ToArray();
+            imageUri = imageGenerations.Value.Data.Select(data => data.Url.ToString()).First();
             message = "";
         }
         catch (RequestFailedException ex) when (ex.Status == 429)
@@ -88,7 +108,42 @@ else if (imageUris != null)
             message = $"An error occurred: {ex.Message}";
         }
 
-        running = false;
     }
+
+
+
+    private async Task ApproveImage(MouseEventArgs e)
+    {
+
+        if (imageUri == null)
+        {
+            return;
+        }
+
+        message = loadingMessage;
+
+        var serviceBusClient = new ServiceBusClient(sbConfig.connectionString);
+        var sender = serviceBusClient.CreateSender(sbConfig.queueName);
+
+        var messageBody = new
+        {
+            url = imageUri, // Assuming the first image is the one to be approved
+            approvalTimeStamp = DateTime.UtcNow.ToString("o"), // ISO 8601 format
+            userPrompt = userPrompt
+        };
+
+        string jsonMessage = JsonSerializer.Serialize(messageBody);
+
+        // create a Service Bus message
+        ServiceBusMessage messageToSend = new ServiceBusMessage(jsonMessage);
+
+        // send the message
+        await sender.SendMessageAsync(messageToSend);
+
+        message = "Image approved and message sent to Service Bus.";
+        imageUri = null;
+
+    }
+
 
 }
