@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
     <Version>4.0.0</Version>
     <AssemblyVersion>4.0.0.23318</AssemblyVersion>
@@ -11,6 +11,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>c7a75887-a97f-4808-b0ae-630a0b27dc4e</UserSecretsId>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="out\**" />
+    <Content Remove="out\**" />
+    <EmbeddedResource Remove="out\**" />
+    <None Remove="out\**" />
+  </ItemGroup>
   <ItemGroup>
     <None Update="Data\app.db" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
   </ItemGroup>
