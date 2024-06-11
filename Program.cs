@@ -31,6 +31,7 @@ if (serviceBusConfig == null)
 }
 
 builder.Services.AddSingleton<ServiceBusConfig>(serviceBusConfig);
+builder.Services.AddApplicationInsightsTelemetry();
 
 
 
