@@ -26,4 +26,12 @@ The BadgeProcessingFunction is a backend service responsible for processing badg
   - Unique identifier generation
   - External system integration
 
+### BadgeViewApp
+
+The BadgeViewApp displays digital badges created by the `BadgeMaker` and approved by the `BadgeProcessingFunction`. It serves as the final interface for users to view their completed badges.
+
+**Project File**: `BadgeViewApp/BadgeViewApp.sln`
+**Framework**: dotnet 8
+**Key Features**:
+ - Display approved badges
 
