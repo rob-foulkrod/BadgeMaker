@@ -1,0 +1,49 @@
+﻿@page "/generate"
+@rendermode InteractiveServer
+@using Azure;
+@using Azure.AI.OpenAI;
+@using Azure.Messaging.ServiceBus
+@using static System.Environment;
+@using System.Text.Json
+@inject BadgeGeneratorViewModel viewModel
+
+<PageTitle>Badge Generator</PageTitle>
+
+<h1>Badge Generator</h1>
+
+<p>Describe the badge that you would like to see. We are using a service that will restrict to 3 calls a minute, so be patient</p>
+
+<FluentStack Orientation="Orientation.Vertical">
+    <FluentTextArea Label="Prompt" id="badgePrompt" class="form-control" Value="@viewModel.UserPrompt" ValueChanged="@((string val) => viewModel.UserPrompt = val)" Rows="3" Cols="100" Resize="TextAreaResize.Both"></FluentTextArea>
+    <FluentButton class="btn btn-primary" @onclick="viewModel.GenerateBadge">Generate Badge</FluentButton>
+</FluentStack>
+
+@if (viewModel.ImageUri == null)
+{
+    if (viewModel.IsLoading)
+    {
+        
+        <FluentProgressRing></FluentProgressRing>
+        <p><em>@viewModel.Message</em></p>
+    }
+    else
+    {
+        <p><em>@viewModel.Message</em></p>
+    }
+}
+else if (@viewModel.ImageUri != null)
+{
+    //wrap in div to allow for multiple images
+    <FluentStack Orientation="Orientation.Horizontal">
+
+        <img src="@viewModel.ImageUri" alt="Generated Image" width="512" height="512" />
+
+        @if (viewModel.CanApprove)
+        {
+            <div>
+                <p>Click the Approve Button, if you approve this new badge.</p>
+                <FluentButton class="btn btn-primary" @onclick="viewModel.ApproveImage">Approve</FluentButton>
+            </div>
+        }
+    </FluentStack>
+}

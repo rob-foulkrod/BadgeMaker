@@ -1,4 +1,5 @@
 using BadgeMaker.Components;
+using BadgeMaker.Components.Models;
 using Microsoft.FluentUI.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,18 +11,15 @@ builder.Services.AddRazorComponents()
 builder.Services.AddFluentUIComponents();
 builder.Configuration.AddUserSecrets<Program>();
 
-
-var openApiConfig = builder.Configuration.GetSection("openai").Get<OpenApiConfig>();
+var openApiConfig = builder.Configuration.GetSection("openai").Get<OpenAIConfig>();
 
 if (openApiConfig == null)
 {
     SystemMessages.ConfigurationWarnings.Add("OpenApi configuration is missing");
-    openApiConfig = new OpenApiConfig();
+    openApiConfig = new OpenAIConfig();
 }
 
-
-
-builder.Services.AddSingleton<OpenApiConfig>(openApiConfig);
+builder.Services.AddSingleton<OpenAIConfig>(openApiConfig);
 
 var serviceBusConfig = builder.Configuration.GetSection("serviceBus").Get<ServiceBusConfig>();
 if (serviceBusConfig == null)
@@ -31,9 +29,8 @@ if (serviceBusConfig == null)
 }
 
 builder.Services.AddSingleton<ServiceBusConfig>(serviceBusConfig);
+builder.Services.AddSingleton<BadgeGeneratorViewModel>();
 builder.Services.AddApplicationInsightsTelemetry();
-
-
 
 var app = builder.Build();
 
@@ -54,27 +51,3 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
-
-
-
-public class OpenApiConfig
-{
-    public string apiKey { get; set; }
-    public string deployment { get; set; }
-    public string endpoint { get; set; }
-    public bool IsConfigured => !string.IsNullOrEmpty(apiKey) && !string.IsNullOrEmpty(deployment) && !string.IsNullOrEmpty(endpoint);
-
-}
-
-public class ServiceBusConfig
-{
-    public string connectionString { get; set; }
-    public string queueName { get; set; }
-    public bool IsConfigured => !string.IsNullOrEmpty(connectionString) && !string.IsNullOrEmpty(queueName);
-}
-
-class SystemMessages
-{
-    public static List<string> ConfigurationWarnings { get; set; } = new List<string>();
-
-}

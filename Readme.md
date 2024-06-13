@@ -1,0 +1,29 @@
+# PR-701 61100 Projects
+
+This system is designed to streamline the creation and processing of digital badges. It consists of two main components: the BadgeMaker application for designing and generating badges, and the BadgeProcessingFunction, a backend service for processing and managing badge data.
+
+## Components
+
+### BadgeMaker
+
+The BadgeMaker is a Blazor front-end application that provides a user-friendly interface for designing and generating digital badges. It allows users to customize badges with various templates, colors, and text options.
+
+- **Project File**: `BlazorFrontEndApp/BadgeMaker.sln`
+- **Framework**: dotnet 8
+- **Key Features**:
+  - Badge design interface
+  - Template selection
+  - Color and text customization
+
+### BadgeProcessingFunction
+
+The BadgeProcessingFunction is a backend service responsible for processing badge data. It handles tasks such as storing badge information, generating unique identifiers for badges, and integrating with external systems for badge verification.
+
+- **Project File**: `BadgeProcessingFunction/BadgeProcessingFunction/BadgeProcessingFunction.sln`
+- **Framework**: dotnet 6
+- **Key Features**:
+  - Badge data processing
+  - Unique identifier generation
+  - External system integration
+
+
