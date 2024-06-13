@@ -11,7 +11,6 @@ builder.Services.AddRazorComponents()
 builder.Services.AddFluentUIComponents();
 builder.Configuration.AddUserSecrets<Program>();
 
-
 var openApiConfig = builder.Configuration.GetSection("openai").Get<OpenAIConfig>();
 
 if (openApiConfig == null)
@@ -19,8 +18,6 @@ if (openApiConfig == null)
     SystemMessages.ConfigurationWarnings.Add("OpenApi configuration is missing");
     openApiConfig = new OpenAIConfig();
 }
-
-
 
 builder.Services.AddSingleton<OpenAIConfig>(openApiConfig);
 
@@ -32,9 +29,8 @@ if (serviceBusConfig == null)
 }
 
 builder.Services.AddSingleton<ServiceBusConfig>(serviceBusConfig);
+builder.Services.AddSingleton<BadgeGeneratorViewModel>();
 builder.Services.AddApplicationInsightsTelemetry();
-
-
 
 var app = builder.Build();
 

@@ -21,6 +21,10 @@ public class BadgeGeneratorViewModel
         this.serviceBusConfig = serviceBusConfig;
     }
 
+    public bool IsLoading => Message == loadingMessage;
+
+    public bool CanApprove => ImageUri != null && serviceBusConfig.IsConfigured;
+
     public async Task GenerateBadge()
     {
         ImageUri = null;
@@ -32,7 +36,7 @@ public class BadgeGeneratorViewModel
         }
         else
         {
-            Message = "Loading...";
+            Message = loadingMessage;
         }
 
         try
@@ -41,7 +45,7 @@ public class BadgeGeneratorViewModel
             var imageGenerations = await client.GetImageGenerationsAsync(new ImageGenerationOptions()
             {
                 DeploymentName = openAIconfig.deployment,
-                Prompt = "Description --- " + UserPrompt,
+                Prompt = "We are creating a collection of badges for a training course. Every day needs it own badge. I will provide a description of the badge and you will create a badge image. Every badge will be round and contain an image and the badge number. The badges will be created in Pixar animation. --- " + UserPrompt,
                 Size = ImageSize.Size1024x1024,
                 ImageCount = 1
             });
@@ -59,7 +63,7 @@ public class BadgeGeneratorViewModel
         }
     }
 
-    private async Task ApproveImage()
+    public async Task ApproveImage()
     {
 
         if (ImageUri == null)

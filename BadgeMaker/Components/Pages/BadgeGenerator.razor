@@ -5,8 +5,7 @@
 @using Azure.Messaging.ServiceBus
 @using static System.Environment;
 @using System.Text.Json
-@inject OpenAIConfig config
-@inject ServiceBusConfig sbConfig
+@inject BadgeGeneratorViewModel viewModel
 
 <PageTitle>Badge Generator</PageTitle>
 
@@ -14,134 +13,37 @@
 
 <p>Describe the badge that you would like to see. We are using a service that will restrict to 3 calls a minute, so be patient</p>
 
-
 <FluentStack Orientation="Orientation.Vertical">
-    <FluentTextArea Label="Prompt" id="badgePrompt" class="form-control" Value="@userPrompt" ValueChanged="@((string val) => userPrompt = val)" Rows="3" Cols="100" Resize="TextAreaResize.Both"></FluentTextArea>
-    <FluentButton class="btn btn-primary" @onclick="GenerateBadge">Generate Badge</FluentButton>
+    <FluentTextArea Label="Prompt" id="badgePrompt" class="form-control" Value="@viewModel.UserPrompt" ValueChanged="@((string val) => viewModel.UserPrompt = val)" Rows="3" Cols="100" Resize="TextAreaResize.Both"></FluentTextArea>
+    <FluentButton class="btn btn-primary" @onclick="viewModel.GenerateBadge">Generate Badge</FluentButton>
 </FluentStack>
 
-
-
-
-@if (imageUri == null)
+@if (viewModel.ImageUri == null)
 {
-    if (message == loadingMessage)
+    if (viewModel.IsLoading)
     {
         
         <FluentProgressRing></FluentProgressRing>
-        <p><em>@message</em></p>
+        <p><em>@viewModel.Message</em></p>
     }
     else
     {
-        <p><em>@message</em></p>
+        <p><em>@viewModel.Message</em></p>
     }
 }
-else if (imageUri != null)
+else if (@viewModel.ImageUri != null)
 {
     //wrap in div to allow for multiple images
     <FluentStack Orientation="Orientation.Horizontal">
 
-        <img src="@imageUri" alt="Generated Image" width="512" height="512" />
+        <img src="@viewModel.ImageUri" alt="Generated Image" width="512" height="512" />
 
-
-        @if (sbConfig.IsConfigured)
+        @if (viewModel.CanApprove)
         {
             <div>
                 <p>Click the Approve Button, if you approve this new badge.</p>
-                <FluentButton class="btn btn-primary" @onclick="ApproveImage">Approve</FluentButton>
+                <FluentButton class="btn btn-primary" @onclick="viewModel.ApproveImage">Approve</FluentButton>
             </div>
         }
     </FluentStack>
-}
-
-@code {
-    string? imageUri = null;
-    string userPrompt = "";
-    string message = "";
-    const string loadingMessage = "loading...";
-
-
-    private async Task GenerateBadge(MouseEventArgs e)
-    {
-
-        imageUri = null;
-
-        if (String.IsNullOrWhiteSpace(userPrompt))
-        {
-            message = "Please enter a prompt";
-            return;
-        }
-        else
-        {
-            message = loadingMessage;
-        }
-
-        string endpoint = config.endpoint;
-        string key = config.apiKey;
-
-        OpenAIClient client = new OpenAIClient(new Uri(endpoint), new AzureKeyCredential(key));
-        try
-        {
-            Response<ImageGenerations> imageGenerations = await client.GetImageGenerationsAsync(
-                new ImageGenerationOptions()
-                    {
-                        DeploymentName = config.deployment,
-                        Prompt = "We are creating a collection of badges for a training course. Every day needs it own badge. I will provide a description of the badge and you will create a badge image. Every badge will be round and contain an image and the badge number. The badges will be created in Pixar animation. --- " + userPrompt,
-                        Size = ImageSize.Size1024x1024,
-                        ImageCount = 1
-                    });
-
-            // Image Generations responses provide URLs you can use to retrieve requested images
-            imageUri = imageGenerations.Value.Data.Select(data => data.Url.ToString()).First();
-            message = "";
-        }
-        catch (RequestFailedException ex) when (ex.Status == 429)
-        {
-            message = "You have made too many requests. Please wait a while before trying again.";
-        }
-        catch (RequestFailedException ex) when (ex.Status == 400)
-        {
-            message = "Your request was rejected as a result of our safety system. Your prompt may contain text that is not allowed by our safety system.";
-        }
-        catch (Exception ex)
-        {
-            message = $"An error occurred: {ex.Message}";
-        }
-
-    }
-
-    private async Task ApproveImage(MouseEventArgs e)
-    {
-
-        if (imageUri == null)
-        {
-            return;
-        }
-
-        message = loadingMessage;
-
-        var serviceBusClient = new ServiceBusClient(sbConfig.connectionString);
-        var sender = serviceBusClient.CreateSender(sbConfig.queueName);
-
-        var messageBody = new
-        {
-            url = imageUri, // Assuming the first image is the one to be approved
-            approvalTimeStamp = DateTime.UtcNow.ToString("o"), // ISO 8601 format
-            userPrompt = userPrompt
-        };
-
-        string jsonMessage = JsonSerializer.Serialize(messageBody);
-
-        // create a Service Bus message
-        ServiceBusMessage messageToSend = new ServiceBusMessage(jsonMessage);
-
-        // send the message
-        await sender.SendMessageAsync(messageToSend);
-
-        message = "Image approved and message sent to Service Bus.";
-        imageUri = null;
-
-    }
-
-
 }
