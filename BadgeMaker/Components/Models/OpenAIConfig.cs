@@ -1,6 +1,6 @@
 ﻿namespace BadgeMaker.Components.Models;
 
-public class OpenApiConfig
+public class OpenAIConfig
 {
     public string apiKey { get; set; }
     public string deployment { get; set; }

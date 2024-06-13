@@ -12,17 +12,17 @@ builder.Services.AddFluentUIComponents();
 builder.Configuration.AddUserSecrets<Program>();
 
 
-var openApiConfig = builder.Configuration.GetSection("openai").Get<OpenApiConfig>();
+var openApiConfig = builder.Configuration.GetSection("openai").Get<OpenAIConfig>();
 
 if (openApiConfig == null)
 {
     SystemMessages.ConfigurationWarnings.Add("OpenApi configuration is missing");
-    openApiConfig = new OpenApiConfig();
+    openApiConfig = new OpenAIConfig();
 }
 
 
 
-builder.Services.AddSingleton<OpenApiConfig>(openApiConfig);
+builder.Services.AddSingleton<OpenAIConfig>(openApiConfig);
 
 var serviceBusConfig = builder.Configuration.GetSection("serviceBus").Get<ServiceBusConfig>();
 if (serviceBusConfig == null)
