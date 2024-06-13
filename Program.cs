@@ -1,4 +1,5 @@
 using BadgeMaker.Components;
+using BadgeMaker.Components.Models;
 using Microsoft.FluentUI.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -54,27 +55,3 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
-
-
-
-public class OpenApiConfig
-{
-    public string apiKey { get; set; }
-    public string deployment { get; set; }
-    public string endpoint { get; set; }
-    public bool IsConfigured => !string.IsNullOrEmpty(apiKey) && !string.IsNullOrEmpty(deployment) && !string.IsNullOrEmpty(endpoint);
-
-}
-
-public class ServiceBusConfig
-{
-    public string connectionString { get; set; }
-    public string queueName { get; set; }
-    public bool IsConfigured => !string.IsNullOrEmpty(connectionString) && !string.IsNullOrEmpty(queueName);
-}
-
-class SystemMessages
-{
-    public static List<string> ConfigurationWarnings { get; set; } = new List<string>();
-
-}

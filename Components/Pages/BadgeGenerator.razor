@@ -1,12 +1,12 @@
 ﻿@page "/generate"
 @rendermode InteractiveServer
-@inject OpenApiConfig config
-@inject ServiceBusConfig sbConfig
 @using Azure;
 @using Azure.AI.OpenAI;
 @using Azure.Messaging.ServiceBus
 @using static System.Environment;
 @using System.Text.Json
+@inject OpenApiConfig config
+@inject ServiceBusConfig sbConfig
 
 <PageTitle>Badge Generator</PageTitle>
 
@@ -109,8 +109,6 @@ else if (imageUri != null)
         }
 
     }
-
-
 
     private async Task ApproveImage(MouseEventArgs e)
     {
