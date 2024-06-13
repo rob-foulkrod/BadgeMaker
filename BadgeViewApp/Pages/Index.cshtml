@@ -1,0 +1,16 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Welcome</h1>
+    @foreach (var badgeId in Model.Badges) 
+    {
+        <p>Badge: @badgeId</p>
+        <img src="Badge/@badgeId"/>
+        <br />
+    }
+
+</div>
