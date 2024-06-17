@@ -2,8 +2,9 @@ using Azure;
 using Azure.AI.OpenAI;
 using Azure.Messaging.ServiceBus;
 using BadgeMaker.Components.Interfaces;
-using BadgeMaker.Components.Models;
 using System.Text.Json;
+
+namespace BadgeMaker.Components.Models;
 
 public class BadgeGeneratorViewModel
 {
