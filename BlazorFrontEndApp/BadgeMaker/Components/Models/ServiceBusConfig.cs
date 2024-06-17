@@ -2,8 +2,8 @@
 {
     public class ServiceBusConfig
     {
-        public string connectionString { get; set; }
-        public string queueName { get; set; }
-        public bool IsConfigured => !string.IsNullOrEmpty(connectionString) && !string.IsNullOrEmpty(queueName);
+        public virtual string connectionString { get; set; }
+        public virtual string queueName { get; set; }
+        public virtual bool IsConfigured => !string.IsNullOrEmpty(connectionString) && !string.IsNullOrEmpty(queueName);
     }
 }

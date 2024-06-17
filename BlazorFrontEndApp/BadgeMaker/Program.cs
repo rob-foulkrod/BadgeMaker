@@ -1,5 +1,7 @@
 using BadgeMaker.Components;
+using BadgeMaker.Components.Interfaces;
 using BadgeMaker.Components.Models;
+using BadgeMaker.Components.Services;
 using Microsoft.FluentUI.AspNetCore.Components;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +32,10 @@ if (serviceBusConfig == null)
 
 builder.Services.AddSingleton<ServiceBusConfig>(serviceBusConfig);
 builder.Services.AddSingleton<BadgeGeneratorViewModel>();
+builder.Services.AddSingleton<IOpenAIService, OpenAIService>();
+builder.Services.AddSingleton<IServiceBusService, ServiceBusService>();
+
+
 builder.Services.AddApplicationInsightsTelemetry();
 
 var app = builder.Build();

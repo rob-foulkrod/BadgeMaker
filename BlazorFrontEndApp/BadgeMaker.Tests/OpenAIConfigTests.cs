@@ -1,6 +1,7 @@
 using BadgeMaker.Components.Models;
 using Xunit;
 
+namespace BadgeMaker.Tests;
 public class OpenAIConfigTests
 {
     [Fact]
