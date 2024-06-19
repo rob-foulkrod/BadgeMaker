@@ -2,9 +2,9 @@
 
 public class OpenAIConfig
 {
-    public string apiKey { get; set; }
-    public string deployment { get; set; }
-    public string endpoint { get; set; }
-    public bool IsConfigured => !string.IsNullOrEmpty(apiKey) && !string.IsNullOrEmpty(deployment) && !string.IsNullOrEmpty(endpoint);
+    public virtual string apiKey { get; set; }
+    public virtual string deployment { get; set; }
+    public virtual string endpoint { get; set; }
+    public virtual bool IsConfigured => !string.IsNullOrEmpty(apiKey) && !string.IsNullOrEmpty(deployment) && !string.IsNullOrEmpty(endpoint);
 
 }
