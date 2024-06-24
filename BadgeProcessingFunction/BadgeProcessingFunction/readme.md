@@ -19,6 +19,7 @@ Example `local.settings.json` (sensitive information omitted):
   "IsEncrypted": false,
   "Values": {
     "AzureWebJobsStorage": "DefaultEndpointsProtocol=https;AccountName=...",
+    "BlobContainerName": "badges",
     "badgeservicebus": "Endpoint=sb://..."
   }
 }

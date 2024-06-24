@@ -1,0 +1,27 @@
+# @name orchestrations
+get http://localhost:7254/api/orchestrations
+
+@currentInstance = {{orchestrations.response.body.$[0].instanceId}}
+###
+get http://localhost:7254/api/orchestrations/{{currentInstance}}/history
+
+
+###
+post http://localhost:7254/api/orchestrations/{{currentInstance}}/validatePrompt
+Content-Type: application/json
+
+{
+    "instanceId": "{{currentInstance}}",
+    "approved": "true",
+    "description": "looks good to me"
+}
+
+
+###
+post http://localhost:7254/api/orchestrations/{{currentInstance}}/validateImage
+
+{
+    "instanceId": "{{currentInstance}}",
+    "approved": "true",
+    "description": "looks good to me"
+}
