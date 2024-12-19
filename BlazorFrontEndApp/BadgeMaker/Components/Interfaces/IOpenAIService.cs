@@ -1,4 +1,5 @@
-using Azure.AI.OpenAI;
+
+using OpenAI.Images;
 
 namespace BadgeMaker.Components.Interfaces;
 
