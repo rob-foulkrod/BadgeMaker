@@ -3,6 +3,10 @@ targetScope = 'resourceGroup'
 param location string
 param tags object
 param environmentName string
+@secure()
+param badgeViewAppDefinition object
+
+param badgeViewAppExists bool
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -221,40 +225,41 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.4.5
   }
 }
 
-// var badgeViewAppAppSettingsArray = filter(array(badgeViewAppDefinition.settings), i => i.name != '')
-// var badgeViewAppSecrets = map(filter(badgeViewAppAppSettingsArray, i => i.?secret != null), i => {
-//   name: i.name
-//   value: i.value
-//   secretRef: i.?secretRef ?? take(replace(replace(toLower(i.name), '_', '-'), '.', '-'), 32)
-// })
-// var badgeViewAppEnv = map(filter(badgeViewAppAppSettingsArray, i => i.?secret == null), i => {
-//   name: i.name
-//   value: i.value
-// })
+var badgeViewAppAppSettingsArray = filter(array(badgeViewAppDefinition.settings), i => i.name != '')
+var badgeViewAppSecrets = map(filter(badgeViewAppAppSettingsArray, i => i.?secret != null), i => {
+  name: i.name
+  value: i.value
+  secretRef: i.?secretRef ?? take(replace(replace(toLower(i.name), '_', '-'), '.', '-'), 32)
+})
+var badgeViewAppEnv = map(filter(badgeViewAppAppSettingsArray, i => i.?secret == null), i => {
+  name: i.name
+  value: i.value
+})
 
 module badgeViewAppFetchLatestImage './modules/fetch-container-image.bicep' = {
   name: 'badgeViewApp-fetch-image'
   params: {
-    exists: false //was a parameter. Keep an eye on it
+    exists: badgeViewAppExists //was a parameter. Keep an eye on it
     name: 'badge-view-app'
   }
 }
 
-module badgeViewApp 'br/public:avm/res/app/container-app:0.11.0' = {
+module badgeViewApp 'br/public:avm/res/app/container-app:0.8.0' = {
   name: 'badgeViewApp'
   params: {
     name: 'badge-view-app'
     ingressTargetPort: 5000
     scaleMinReplicas: 1
     scaleMaxReplicas: 10
-    // secrets: {
-    //   secureList:  union([
-    //   ],
-    //   map(badgeViewAppSecrets, secret => {
-    //     name: secret.secretRef
-    //     value: secret.value
-    //   }))
-
+    secrets: {
+      secureList: union(
+        [],
+        map(badgeViewAppSecrets, secret => {
+          name: secret.secretRef
+          value: secret.value
+        })
+      )
+    }
     containers: [
       {
         image: badgeViewAppFetchLatestImage.outputs.?containers[?0].?image ?? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
@@ -263,6 +268,27 @@ module badgeViewApp 'br/public:avm/res/app/container-app:0.11.0' = {
           cpu: json('0.5')
           memory: '1.0Gi'
         }
+        env: union(
+          [
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: monitoring.outputs.applicationInsightsConnectionString
+            }
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: badgeViewAppIdentity.outputs.clientId
+            }
+            {
+              name: 'PORT'
+              value: '5000'
+            }
+          ],
+          badgeViewAppEnv,
+          map(badgeViewAppSecrets, secret => {
+            name: secret.name
+            secretRef: secret.secretRef
+          })
+        )
       }
     ]
     managedIdentities: {

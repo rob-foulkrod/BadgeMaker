@@ -9,6 +9,11 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
+@secure()
+param badgeViewAppDefinition object
+
+param badgeViewAppExists bool
+
 var tags = {
   'azd-env-name': environmentName
 }
@@ -28,5 +33,7 @@ module resources './resources.bicep' = {
     location: location
     tags: tags
     environmentName: environmentName
+    badgeViewAppDefinition: badgeViewAppDefinition
+    badgeViewAppExists: badgeViewAppExists
   }
 }
