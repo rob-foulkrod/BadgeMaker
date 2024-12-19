@@ -2,6 +2,7 @@ using Azure;
 using Azure.AI.OpenAI;
 using Azure.Messaging.ServiceBus;
 using BadgeMaker.Components.Interfaces;
+using OpenAI.Images;
 using System.Text.Json;
 
 namespace BadgeMaker.Components.Models;
@@ -45,12 +46,12 @@ public class BadgeGeneratorViewModel
         try
         {
 
-            ImageGenerationOptions options = new ImageGenerationOptions()
-            {
-                Prompt = "We are creating a collection of badges for a training course. Every day needs it own badge. I will provide a description of the badge and you will create a badge image. Every badge will be round and contain an image and the badge number. The badges will be created in Pixar animation. --- " + UserPrompt,
-                Size = ImageSize.Size1024x1024,
-                ImageCount = 1
+            ImageGenerationOptions options = new ImageGenerationOptions() { 
+                Size = GeneratedImageSize.W1024xH1024,
+                Quality = GeneratedImageQuality.High,
+                ResponseFormat = GeneratedImageFormat.Uri
             };
+
 
             ImageUri = await openAIService.GenerateImageUriAsync(UserPrompt, options);
             Message = "";

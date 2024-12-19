@@ -2,6 +2,7 @@ using Moq;
 using BadgeMaker.Components.Interfaces;
 using Azure.AI.OpenAI;
 using BadgeMaker.Components.Models;
+using OpenAI.Images;
 
 namespace BadgeMaker.Tests;
 

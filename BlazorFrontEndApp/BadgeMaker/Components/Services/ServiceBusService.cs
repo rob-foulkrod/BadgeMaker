@@ -1,3 +1,4 @@
+using Azure.Identity;
 using Azure.Messaging.ServiceBus;
 using BadgeMaker.Components.Interfaces;
 using BadgeMaker.Components.Models;
@@ -18,7 +19,8 @@ public class ServiceBusService : IServiceBusService
 
     public async Task SendMessageAsync(string messageBody)
     {
-        var client = new ServiceBusClient(serviceBusConfig.connectionString);
+        var credential = new DefaultAzureCredential();
+        var client = new ServiceBusClient(serviceBusConfig.endpoint, credential);
         var sender = client.CreateSender(serviceBusConfig.queueName);
         var message = new ServiceBusMessage(messageBody);
         await sender.SendMessageAsync(message);

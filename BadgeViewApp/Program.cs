@@ -10,22 +10,22 @@ builder.Configuration.AddJsonFile("appsettings-jf.json", true);
 // Add App Configuration to application
 var appConfigurationConnectionString = builder.Configuration["AppConfiguration"];
 
-if (string.IsNullOrEmpty(appConfigurationConnectionString))
-{
-    throw new Exception("AppConfiguration connection string is missing");
-}
+//if (string.IsNullOrEmpty(appConfigurationConnectionString))
+//{
+//    throw new Exception("AppConfiguration connection string is missing");
+//}
 
-builder.Configuration.AddAzureAppConfiguration(options =>
-{
-    options
-        .Connect(appConfigurationConnectionString)
-        .Select("BadgeMaker:BadgeView:*")
-        .ConfigureRefresh(refresh =>
-        {
-            refresh.Register("BadgeMaker:BadgeView:Message", refreshAll: true)
-                .SetCacheExpiration(TimeSpan.FromSeconds(5));
-        });
-});
+//builder.Configuration.AddAzureAppConfiguration(options =>
+//{
+//    options
+//        .Connect(appConfigurationConnectionString)
+//        .Select("BadgeMaker:BadgeView:*")
+//        .ConfigureRefresh(refresh =>
+//        {
+//            refresh.Register("BadgeMaker:BadgeView:Message", refreshAll: true)
+//                .SetCacheExpiration(TimeSpan.FromSeconds(5));
+//        });
+//});
 
 // Add services to the container.
 builder.Services.AddRazorPages();
@@ -42,7 +42,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseAzureAppConfiguration();
+//app.UseAzureAppConfiguration();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

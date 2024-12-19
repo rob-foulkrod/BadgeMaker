@@ -1,7 +1,9 @@
+using Azure.Identity;
 using Azure.Storage.Blobs;
 
+
 public class BadgeService(IConfiguration _configuration) {
-    private BlobServiceClient _blobClient = new BlobServiceClient(_configuration["BadgesStorageAccount"]);
+    private BlobServiceClient _blobClient = new BlobServiceClient(new Uri(_configuration["BadgesStorageAccount"]), new DefaultAzureCredential());
 
 
     public List<string> GetBadges() {
