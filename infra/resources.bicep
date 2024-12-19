@@ -8,6 +8,9 @@ param badgeViewAppDefinition object
 
 param badgeViewAppExists bool
 
+@description('Deploy images to the storage account from the GitHub repo')
+param deployImages bool = true
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 
@@ -88,6 +91,12 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
     skuName: 'Standard_LRS'
     blobServices: {
       enabled: true
+      containers: [
+        {
+          name: 'badges'
+          publicAccess: 'None'
+        }
+      ]
     }
     networkAcls: {
       bypass: 'AzureServices'
@@ -98,6 +107,11 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
         principalId: badgeViewAppIdentity.outputs.principalId
         principalType: 'ServicePrincipal'
         roleDefinitionIdOrName: 'Storage Blob Data Reader'
+      }
+      {
+        principalId: blobUploadIdentity.outputs.principalId
+        principalType: 'ServicePrincipal'
+        roleDefinitionIdOrName: 'Storage Blob Data Contributor'
       }
     ]
   }
@@ -151,7 +165,7 @@ module blazorFrontEndWebApp 'br/public:avm/res/web/site:0.12.0' = {
     appSettingsKeyValuePairs: {
       openai__deployment: 'dall-e-3'
       openai__endpoint: 'https://${aiAccount.outputs.name}.openai.azure.com/'
-      servicebus__namespace: '${serviceBus.outputs.name}.servicebus.windows.net'
+      servicebus__endpoint: '${serviceBus.outputs.name}.servicebus.windows.net'
       servicebus__queueName: '${abbrs.serviceBusNamespacesQueues}${resourceToken}'
     }
   }
@@ -188,6 +202,14 @@ module badgeViewAppIdentity 'br/public:avm/res/managed-identity/user-assigned-id
   name: 'badgeViewAppidentity'
   params: {
     name: '${abbrs.managedIdentityUserAssignedIdentities}badgeViewApp-${resourceToken}'
+    location: location
+  }
+}
+
+module blobUploadIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.2.1' = {
+  name: 'blobUploadIdentityDeployment'
+  params: {
+    name: '${abbrs.managedIdentityUserAssignedIdentities}upload-${resourceToken}'
     location: location
   }
 }
@@ -248,9 +270,10 @@ module badgeViewApp 'br/public:avm/res/app/container-app:0.8.0' = {
   name: 'badgeViewApp'
   params: {
     name: 'badge-view-app'
-    ingressTargetPort: 5000
+    ingressAllowInsecure: false
     scaleMinReplicas: 1
     scaleMaxReplicas: 10
+    ingressTargetPort: 8080
     secrets: {
       secureList: union(
         [],
@@ -279,8 +302,8 @@ module badgeViewApp 'br/public:avm/res/app/container-app:0.8.0' = {
               value: badgeViewAppIdentity.outputs.clientId
             }
             {
-              name: 'PORT'
-              value: '5000'
+              name: 'BadgesStorageAccount'
+              value: storageAccount.outputs.primaryBlobEndpoint
             }
           ],
           badgeViewAppEnv,
@@ -306,3 +329,40 @@ module badgeViewApp 'br/public:avm/res/app/container-app:0.8.0' = {
     tags: union(tags, { 'azd-service-name': 'badge-view-app' })
   }
 }
+
+module uploadBlobsScript 'br/public:avm/res/resources/deployment-script:0.5.0' = if (deployImages) {
+  name: 'uploadBlobsScriptDeployment'
+  params: {
+    kind: 'AzurePowerShell'
+    name: 'uploadBlobsScript'
+    azPowerShellVersion: '12.3'
+    location: location
+    managedIdentities: {
+      userAssignedResourceIds: [
+        blobUploadIdentity.outputs.resourceId
+      ]
+    }
+    cleanupPreference: 'OnSuccess'
+    retentionInterval: 'P1D'
+    enableTelemetry: true
+    storageAccountResourceId: storageAccount.outputs.resourceId
+    arguments: '-StorageAccountName ${storageAccount.outputs.name}' //multi line strings do not support interpolation in bicep yet
+    scriptContent: '''
+      param([string] $StorageAccountName)
+
+
+      Invoke-WebRequest -Uri "https://github.com/rob-foulkrod/BadgeMaker/raw/3b91a9fa5a117bb79807c98bfb767c0d5e0e645e/sampleBadges/badge1.jpg" -OutFile badge1.jpg
+      Invoke-WebRequest -Uri "https://github.com/rob-foulkrod/BadgeMaker/raw/3b91a9fa5a117bb79807c98bfb767c0d5e0e645e/sampleBadges/badge2.jpg" -OutFile badge2.jpg
+
+      $context = New-AzStorageContext -StorageAccountName $StorageAccountName
+
+      Set-AzStorageBlobContent -Context $context -Container "badges" -File badge1.jpg -Blob badge1.jpg -Force
+      Set-AzStorageBlobContent -Context $context -Container "badges" -File badge2.jpg -Blob badge2.jpg -Force
+      '''
+  }
+}
+
+//This has to be returned to the main.bicep file for the deployment to work
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
+output AZURE_RESOURCE_BADGE_VIEW_APP_ID string = badgeViewApp.outputs.resourceId
+output AZURE_RESOURCE_BADGE_MAKER_ID string = blazorFrontEndWebApp.outputs.resourceId

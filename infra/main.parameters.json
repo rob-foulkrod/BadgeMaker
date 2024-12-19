@@ -8,6 +8,9 @@
     "location": {
       "value": "${AZURE_LOCATION}"
     },
+    "deployImages": {
+      "value": "true"
+    },
     "badgeViewAppExists": {
       "value": "${SERVICE_BADGE_VIEW_APP_RESOURCE_EXISTS=false}"
     },

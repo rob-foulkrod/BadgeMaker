@@ -14,6 +14,8 @@ param badgeViewAppDefinition object
 
 param badgeViewAppExists bool
 
+param deployImages bool = true
+
 var tags = {
   'azd-env-name': environmentName
 }
@@ -35,5 +37,10 @@ module resources './resources.bicep' = {
     environmentName: environmentName
     badgeViewAppDefinition: badgeViewAppDefinition
     badgeViewAppExists: badgeViewAppExists
+    deployImages: deployImages
   }
 }
+
+output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
+output AZURE_RESOURCE_BADGE_VIEW_APP_ID string = resources.outputs.AZURE_RESOURCE_BADGE_VIEW_APP_ID
+output AZURE_RESOURCE_BADGE_MAKER_ID string = resources.outputs.AZURE_RESOURCE_BADGE_MAKER_ID
