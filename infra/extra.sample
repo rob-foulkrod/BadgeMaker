@@ -4,13 +4,14 @@ param location string = resourceGroup().location
 @description('Tags that will be applied to all resources')
 param tags object = {}
 
-
+param badgeMakerExists bool
 param badgeViewAppExists bool
+
 @secure()
 param badgeViewAppDefinition object
-param badgeMakerExists bool
-@secure()
-param badgeMakerDefinition object
+
+
+
 
 @description('Id of the user or app to assign application roles')
 param principalId string
@@ -179,65 +180,7 @@ var badgeMakerEnv = map(filter(badgeMakerAppSettingsArray, i => i.?secret == nul
   value: i.value
 })
 
-module badgeMaker 'br/public:avm/res/app/container-app:0.8.0' = {
-  name: 'badgeMaker'
-  params: {
-    name: 'badge-maker'
-    ingressTargetPort: 80
-    scaleMinReplicas: 1
-    scaleMaxReplicas: 10
-    secrets: {
-      secureList:  union([
-      ],
-      map(badgeMakerSecrets, secret => {
-        name: secret.secretRef
-        value: secret.value
-      }))
-    }
-    containers: [
-      {
-        image: badgeMakerFetchLatestImage.outputs.?containers[?0].?image ?? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
-        name: 'main'
-        resources: {
-          cpu: json('0.5')
-          memory: '1.0Gi'
-        }
-        env: union([
-          {
-            name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-            value: monitoring.outputs.applicationInsightsConnectionString
-          }
-          {
-            name: 'AZURE_CLIENT_ID'
-            value: badgeMakerIdentity.outputs.clientId
-          }
-          {
-            name: 'PORT'
-            value: '80'
-          }
-        ],
-        badgeMakerEnv,
-        map(badgeMakerSecrets, secret => {
-            name: secret.name
-            secretRef: secret.secretRef
-        }))
-      }
-    ]
-    managedIdentities:{
-      systemAssigned: false
-      userAssignedResourceIds: [badgeMakerIdentity.outputs.resourceId]
-    }
-    registries:[
-      {
-        server: containerRegistry.outputs.loginServer
-        identity: badgeMakerIdentity.outputs.resourceId
-      }
-    ]
-    environmentResourceId: containerAppsEnvironment.outputs.resourceId
-    location: location
-    tags: union(tags, { 'azd-service-name': 'badge-maker' })
-  }
-}
+
 // Create a keyvault to store secrets
 module keyVault 'br/public:avm/res/key-vault/vault:0.6.1' = {
   name: 'keyvault'

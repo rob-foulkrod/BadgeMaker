@@ -3,7 +3,6 @@ targetScope = 'resourceGroup'
 param location string
 param tags object
 param environmentName string
-param rgName string
 
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -25,6 +24,7 @@ module aiAccount 'br/public:avm/res/cognitive-services/account:0.9.0' = {
     kind: 'OpenAI'
     name: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
     tags: tags
+    // Managed Identity Authentication doesn't work without a custom subdomain
     customSubDomainName: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
     deployments: [
       {
@@ -89,6 +89,13 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
       bypass: 'AzureServices'
       defaultAction: 'Allow'
     }
+    roleAssignments: [
+      {
+        principalId: badgeViewAppIdentity.outputs.principalId
+        principalType: 'ServicePrincipal'
+        roleDefinitionIdOrName: 'Storage Blob Data Reader'
+      }
+    ]
   }
 }
 
@@ -170,5 +177,106 @@ module aiContributor 'br/public:avm/ptn/authorization/resource-role-assignment:0
     resourceId: aiAccount.outputs.resourceId
     roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
     roleName: 'Cognitive Services OpenAI User'
+  }
+}
+
+module badgeViewAppIdentity 'br/public:avm/res/managed-identity/user-assigned-identity:0.2.1' = {
+  name: 'badgeViewAppidentity'
+  params: {
+    name: '${abbrs.managedIdentityUserAssignedIdentities}badgeViewApp-${resourceToken}'
+    location: location
+  }
+}
+
+// Container registry
+module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' = {
+  name: 'registry'
+  params: {
+    name: '${abbrs.containerRegistryRegistries}${resourceToken}'
+    location: location
+    acrAdminUserEnabled: true
+    tags: tags
+    publicNetworkAccess: 'Enabled'
+    roleAssignments: [
+      {
+        principalId: badgeViewAppIdentity.outputs.principalId
+        principalType: 'ServicePrincipal'
+        roleDefinitionIdOrName: subscriptionResourceId(
+          'Microsoft.Authorization/roleDefinitions',
+          '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+        )
+      }
+    ]
+  }
+}
+
+// Container apps environment
+module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.4.5' = {
+  name: 'container-apps-environment'
+  params: {
+    logAnalyticsWorkspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+    name: '${abbrs.appManagedEnvironments}${resourceToken}'
+    location: location
+    zoneRedundant: false
+  }
+}
+
+// var badgeViewAppAppSettingsArray = filter(array(badgeViewAppDefinition.settings), i => i.name != '')
+// var badgeViewAppSecrets = map(filter(badgeViewAppAppSettingsArray, i => i.?secret != null), i => {
+//   name: i.name
+//   value: i.value
+//   secretRef: i.?secretRef ?? take(replace(replace(toLower(i.name), '_', '-'), '.', '-'), 32)
+// })
+// var badgeViewAppEnv = map(filter(badgeViewAppAppSettingsArray, i => i.?secret == null), i => {
+//   name: i.name
+//   value: i.value
+// })
+
+module badgeViewAppFetchLatestImage './modules/fetch-container-image.bicep' = {
+  name: 'badgeViewApp-fetch-image'
+  params: {
+    exists: false //was a parameter. Keep an eye on it
+    name: 'badge-view-app'
+  }
+}
+
+module badgeViewApp 'br/public:avm/res/app/container-app:0.11.0' = {
+  name: 'badgeViewApp'
+  params: {
+    name: 'badge-view-app'
+    ingressTargetPort: 5000
+    scaleMinReplicas: 1
+    scaleMaxReplicas: 10
+    // secrets: {
+    //   secureList:  union([
+    //   ],
+    //   map(badgeViewAppSecrets, secret => {
+    //     name: secret.secretRef
+    //     value: secret.value
+    //   }))
+
+    containers: [
+      {
+        image: badgeViewAppFetchLatestImage.outputs.?containers[?0].?image ?? 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
+        name: 'main'
+        resources: {
+          cpu: json('0.5')
+          memory: '1.0Gi'
+        }
+      }
+    ]
+    managedIdentities: {
+      systemAssigned: false
+      userAssignedResourceIds: [badgeViewAppIdentity.outputs.resourceId]
+    }
+    registries: [
+      {
+        server: containerRegistry.outputs.loginServer
+        identity: badgeViewAppIdentity.outputs.resourceId
+      }
+    ]
+    environmentResourceId: containerAppsEnvironment.outputs.resourceId
+    location: location
+    tags: union(tags, { 'azd-service-name': 'badge-view-app' })
   }
 }

@@ -28,6 +28,5 @@ module resources './resources.bicep' = {
     location: location
     tags: tags
     environmentName: environmentName
-    rgName: rg.name
   }
 }

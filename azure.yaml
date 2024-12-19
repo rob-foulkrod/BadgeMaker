@@ -8,9 +8,9 @@ services:
         project: BlazorFrontEndApp/BadgeMaker
         host: appservice
         language: dotnet
-    # badge-view-app:
-    #     project: BadgeViewApp
-    #     host: containerapp
-    #     language: dotnet
-    #     docker:
-    #         path: Dockerfile
+    badge-view-app:
+        project: BadgeViewApp
+        host: containerapp
+        language: dotnet
+        docker:
+            path: Dockerfile
