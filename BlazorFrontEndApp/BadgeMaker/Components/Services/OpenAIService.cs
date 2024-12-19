@@ -19,17 +19,26 @@ public class OpenAIService : IOpenAIService
 
     public async Task<string> GenerateImageUriAsync(string prompt, ImageGenerationOptions options)
     {
-        AzureCliCredentialOptions azcliOptions = new AzureCliCredentialOptions();
-        azcliOptions.TenantId = "f33ccec0-9dd1-498d-a573-a859c975456e";
-        
-        var cred = new AzureCliCredential(azcliOptions);
+        var basePrompt = """
+                Create a circular badge celebrating the completion of a specific learning module. 
+                The badge should include a central image that reflects the particular topic of the 
+                module. The design should feature a vibrant color scheme with a primary color that 
+                stands out (e.g., a rich blue, energetic red, or lively green) and complementary 
+                accent colors. The outer edge of the badge should have a decorative border, such 
+                as a subtle pattern or elegant trim, to give it a polished look. Ensure the overall 
+                style is visually appealing and cohesive, suitable for a collection of badges. The 
+                central image should clearly represent the unique topic of this individual module.
+
+                This badge will be awarded to learners who successfully complete the module on 
+                
+        """;
+
 
         var credential = new DefaultAzureCredential();
-       
 
         AzureOpenAIClient client = new AzureOpenAIClient(new Uri(openAIConfig.endpoint), credential);
-       
-        var imageGenerations = await client.GetImageClient(openAIConfig.deployment).GenerateImageAsync(prompt, options);
+
+        var imageGenerations = await client.GetImageClient(openAIConfig.deployment).GenerateImageAsync(basePrompt + prompt, options);
 
         return imageGenerations.Value.ImageUri.ToString();
 

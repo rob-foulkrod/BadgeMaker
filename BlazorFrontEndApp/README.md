@@ -14,7 +14,8 @@ To set up Badge Maker, follow these steps to provide the necessary configuration
 2. **Optional: Service Bus Deployment (Connection String):**
    - If you're using a Service Bus deployment, you can optionally provide the connection string.
    - This can be configured later.
-     
+ 
+    
 3. Example of a `secrets.json` file:
     ```json
     {
@@ -28,7 +29,8 @@ To set up Badge Maker, follow these steps to provide the necessary configuration
         "queueName": "badgeapproved"
       }
     }
-    ```  
+    ```
+  
 Or once deployed to an app service, the configuration can look like this:
 
 ```json 
@@ -48,8 +50,8 @@ Or once deployed to an app service, the configuration can look like this:
     "slotSetting": false
   },
   {
-    "name": "servicebus__connectionString",
-    "value": "[Servicebus Connection string]",
+    "name": "servicebus__endpoint",
+    "value": "[serviceBusEndpoint]",
     "slotSetting": false
   },
   {
