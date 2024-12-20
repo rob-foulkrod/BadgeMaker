@@ -362,6 +362,96 @@ module uploadBlobsScript 'br/public:avm/res/resources/deployment-script:0.5.0' =
   }
 }
 
+module badgeProcessingFunctionPlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
+  name: 'badgeProcessingFunctionPlanDeployment'
+  params: {
+    kind: 'functionApp'
+    name: 'badgeProcessingFunctionPlan'
+    location: location
+    tags: union(tags, { 'azd-service-name': 'badge-processing-function' })
+    skuCapacity: 1
+    skuName: 'FC1'
+  }
+}
+
+module badgeProcessingFunction 'br/public:avm/res/web/site:0.12.0' = {
+  name: 'badgeProcessingFunctionDeployment'
+  params: {
+    // Required parameters
+    kind: 'functionapp'
+    name: 'badgeProcessingFunction'
+    serverFarmResourceId: badgeProcessingFunctionPlan.outputs.resourceId
+    appInsightResourceId: monitoring.outputs.applicationInsightsResourceId
+    appSettingsKeyValuePairs: {
+      AzureFunctionsJobHost__logging__logLevel__default: 'Trace'
+      FUNCTIONS_EXTENSION_VERSION: '~4'
+      FUNCTIONS_WORKER_RUNTIME: 'dotnet'
+      badgeservicebus__fullyQualifiedNamespace: '${serviceBus.outputs.name}.servicebus.windows.net'
+    }
+    diagnosticSettings: [
+      {
+        name: 'basicSetting'
+        metricCategories: [
+          {
+            category: 'AllMetrics'
+          }
+        ]
+        workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+      }
+    ]
+    location: location
+    managedIdentities: {
+      systemAssigned: true
+    }
+
+    siteConfig: {
+      alwaysOn: true
+      use32BitWorkerProcess: false
+    }
+    storageAccountResourceId: storageAccount.outputs.resourceId
+    storageAccountUseIdentityAuthentication: true
+  }
+}
+
+module functionStorageBlobContributor 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'functionStorageBlobContributorDeployment'
+  params: {
+    principalId: badgeProcessingFunction.outputs.systemAssignedMIPrincipalId
+    resourceId: storageAccount.outputs.resourceId
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    roleName: 'Storage Blob Data Contributor'
+  }
+}
+
+module functionStorageQueueContributor 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'functionStorageQueueContributorDeployment'
+  params: {
+    principalId: badgeProcessingFunction.outputs.systemAssignedMIPrincipalId
+    resourceId: storageAccount.outputs.resourceId
+    roleDefinitionId: '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+    roleName: 'Storage Queue Data Contributor'
+  }
+}
+
+module functionStorageTableContributor 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'functionStorageTableContributorDeployment'
+  params: {
+    principalId: badgeProcessingFunction.outputs.systemAssignedMIPrincipalId
+    resourceId: storageAccount.outputs.resourceId
+    roleDefinitionId: '0a9a7e1f-b9d0-4cc4-a60d-0319b160aaa3'
+    roleName: 'Storage Table Data Contributor'
+  }
+}
+
+module functionServiceBusDataReceiver 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'functionServiceBusDataReceiverDeployment'
+  params: {
+    principalId: badgeProcessingFunction.outputs.systemAssignedMIPrincipalId
+    resourceId: serviceBus.outputs.resourceId
+    roleDefinitionId: '4f6d3b9b-027b-4f4c-9142-0e5a2a2247e0'
+    roleName: 'Azure Service Bus Data Receiver'
+  }
+}
 //This has to be returned to the main.bicep file for the deployment to work
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_RESOURCE_BADGE_VIEW_APP_ID string = badgeViewApp.outputs.resourceId

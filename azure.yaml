@@ -14,3 +14,7 @@ services:
         language: dotnet
         docker:
             path: Dockerfile
+    badge-processing-function:
+        project: ./BadgeProcessingFunction/BadgeProcessingFunction
+        language: dotnet
+        host: function
