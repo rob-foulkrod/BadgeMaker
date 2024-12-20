@@ -4,7 +4,7 @@ name: badge-maker
 metadata:
     template: azd-init@1.11.0
 services:
-    badge-maker:
+    badge-front-end-app:
         project: BlazorFrontEndApp/BadgeMaker
         host: appservice
         language: dotnet
@@ -15,6 +15,6 @@ services:
         docker:
             path: Dockerfile
     badge-processing-function:
-        project: ./BadgeProcessingFunction/BadgeProcessingFunction
+        project: ./BadgeProcessingFunction/BPF
         language: dotnet
         host: function

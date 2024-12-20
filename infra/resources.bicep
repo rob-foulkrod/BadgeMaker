@@ -51,6 +51,12 @@ module aiAccount 'br/public:avm/res/cognitive-services/account:0.9.0' = {
 
     publicNetworkAccess: 'Enabled'
     disableLocalAuth: false
+    diagnosticSettings: [
+      {
+        name: 'basicSetting'
+        workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+      }
+    ]
   }
 }
 
@@ -71,7 +77,13 @@ module serviceBus 'br/public:avm/res/service-bus/namespace:0.10.1' = {
         deadLetteringOnMessageExpiration: true
         defaultMessageTimeToLive: 'P7D'
         lockDuration: 'PT5M'
-        maxDeliveryCount: 1
+        maxDeliveryCount: 10
+      }
+    ]
+    diagnosticSettings: [
+      {
+        name: 'basicSetting'
+        workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
       }
     ]
   }
@@ -114,18 +126,30 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
         roleDefinitionIdOrName: 'Storage Blob Data Contributor'
       }
     ]
+    diagnosticSettings: [
+      {
+        name: 'basicSetting'
+        workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+      }
+    ]
   }
 }
 
 module serverfarm 'br/public:avm/res/web/serverfarm:0.4.0' = {
   name: 'serverfarmDeployment'
   params: {
-    name: '${abbrs.webServerFarms}${resourceToken}'
+    name: '${abbrs.webServerFarms}WebApp${resourceToken}'
     location: location
     tags: tags
     kind: 'windows'
     skuName: 'B3'
     skuCapacity: 1
+    diagnosticSettings: [
+      {
+        name: 'basicSetting'
+        workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+      }
+    ]
   }
 }
 
@@ -134,9 +158,9 @@ module blazorFrontEndWebApp 'br/public:avm/res/web/site:0.12.0' = {
   params: {
     kind: 'app'
     tags: union(tags, {
-      'azd-service-name': 'badge-maker'
+      'azd-service-name': 'badge-front-end-app'
     })
-    name: '${abbrs.webSitesAppService}FrontEnd${resourceToken}'
+    name: '${abbrs.webSitesAppService}maker${resourceToken}'
     serverFarmResourceId: serverfarm.outputs.resourceId
     appInsightResourceId: monitoring.outputs.applicationInsightsResourceId
     diagnosticSettings: [
@@ -186,7 +210,6 @@ module servicebusContributor 'br/public:avm/ptn/authorization/resource-role-assi
 
 //Cognitive Services OpenAI User
 //5e0bd9bd-7b93-4f28-af87-19fc36ad61bd
-
 module aiContributor 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
   name: 'aiContributorDeployment'
   params: {
@@ -268,12 +291,14 @@ module badgeViewAppFetchLatestImage './modules/fetch-container-image.bicep' = {
 
 module badgeViewApp 'br/public:avm/res/app/container-app:0.8.0' = {
   name: 'badgeViewApp'
+
   params: {
-    name: 'badge-view-app'
+    name: '${abbrs.appContainerApps}badgeviewapp${resourceToken}'
     ingressAllowInsecure: false
     scaleMinReplicas: 1
     scaleMaxReplicas: 10
     ingressTargetPort: 8080
+
     secrets: {
       secureList: union(
         [],
@@ -324,6 +349,7 @@ module badgeViewApp 'br/public:avm/res/app/container-app:0.8.0' = {
         identity: badgeViewAppIdentity.outputs.resourceId
       }
     ]
+
     environmentResourceId: containerAppsEnvironment.outputs.resourceId
     location: location
     tags: union(tags, { 'azd-service-name': 'badge-view-app' })
@@ -334,7 +360,7 @@ module uploadBlobsScript 'br/public:avm/res/resources/deployment-script:0.5.0' =
   name: 'uploadBlobsScriptDeployment'
   params: {
     kind: 'AzurePowerShell'
-    name: 'uploadBlobsScript'
+    name: 'pwscript-uploadBlobsScript'
     azPowerShellVersion: '12.3'
     location: location
     managedIdentities: {
@@ -366,11 +392,16 @@ module badgeProcessingFunctionPlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
   name: 'badgeProcessingFunctionPlanDeployment'
   params: {
     kind: 'functionApp'
-    name: 'badgeProcessingFunctionPlan'
+    name: '${abbrs.webServerFarms}FunctionPlan${resourceToken}'
     location: location
-    tags: union(tags, { 'azd-service-name': 'badge-processing-function' })
-    skuCapacity: 1
-    skuName: 'FC1'
+    tags: tags
+    skuName: 'Y1' //Consumption plan
+    diagnosticSettings: [
+      {
+        name: 'basicSetting'
+        workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
+      }
+    ]
   }
 }
 
@@ -379,33 +410,33 @@ module badgeProcessingFunction 'br/public:avm/res/web/site:0.12.0' = {
   params: {
     // Required parameters
     kind: 'functionapp'
-    name: 'badgeProcessingFunction'
+    name: '${abbrs.webSitesFunctions}BadgeProcessingFunction${resourceToken}'
+    tags: union(tags, { 'azd-service-name': 'badge-processing-function' })
     serverFarmResourceId: badgeProcessingFunctionPlan.outputs.resourceId
     appInsightResourceId: monitoring.outputs.applicationInsightsResourceId
     appSettingsKeyValuePairs: {
       AzureFunctionsJobHost__logging__logLevel__default: 'Trace'
       FUNCTIONS_EXTENSION_VERSION: '~4'
-      FUNCTIONS_WORKER_RUNTIME: 'dotnet'
+      FUNCTIONS_WORKER_RUNTIME: 'dotnet-isolated'
+      WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED: 1
+      badgeQueueName: '${abbrs.serviceBusNamespacesQueues}${resourceToken}'
+
       badgeservicebus__fullyQualifiedNamespace: '${serviceBus.outputs.name}.servicebus.windows.net'
+      AzureWebJobsStorage__accountName: storageAccount.outputs.name
+      AzureWebJobsStorage__blobUri: storageAccount.outputs.primaryBlobEndpoint
     }
-    diagnosticSettings: [
-      {
-        name: 'basicSetting'
-        metricCategories: [
-          {
-            category: 'AllMetrics'
-          }
-        ]
-        workspaceResourceId: monitoring.outputs.logAnalyticsWorkspaceResourceId
-      }
-    ]
+
     location: location
     managedIdentities: {
       systemAssigned: true
     }
 
     siteConfig: {
-      alwaysOn: true
+      netFrameworkVersion: 'v8.0'
+      numberOfWorkers: 1
+      workerSize: '0'
+      workerSizeId: 0
+      alwaysOn: false
       use32BitWorkerProcess: false
     }
     storageAccountResourceId: storageAccount.outputs.resourceId
@@ -413,13 +444,15 @@ module badgeProcessingFunction 'br/public:avm/res/web/site:0.12.0' = {
   }
 }
 
-module functionStorageBlobContributor 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
-  name: 'functionStorageBlobContributorDeployment'
+//Output Blob Requirement
+//https://learn.microsoft.com/en-us/azure/azure-functions/functions-bindings-storage-blob-output?tabs=python-v2%2Cisolated-process%2Cnodejs-v4&pivots=programming-language-csharp#grant-permission-to-the-identity
+module functionStorageBlobOwner 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'functionStorageBlobOwnerDeployment'
   params: {
     principalId: badgeProcessingFunction.outputs.systemAssignedMIPrincipalId
     resourceId: storageAccount.outputs.resourceId
-    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
-    roleName: 'Storage Blob Data Contributor'
+    roleDefinitionId: 'b7e6dc6d-f1e8-4753-8033-0f276bb0955b'
+    roleName: 'Storage Blob Data Owner'
   }
 }
 
