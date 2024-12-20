@@ -1,40 +1,47 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
 using Azure.Storage.Blobs;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.ServiceBus;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace BadgeProcessingFunction
+namespace BPF2
 {
-    public class BadgeProcessingFunctionClass
+    public class BadgeDownloader
     {
-        [FunctionName("BadgeDownloader")]
-        public async Task Run(
-            [ServiceBusTrigger("badgeapproved", Connection = "badgeservicebus")]
-            ServiceBusReceivedMessage message,
-            ServiceBusMessageActions messageActions,
+        private readonly BlobServiceClient _blobServiceClient;
+        private readonly ILogger<BadgeDownloader> _logger;
 
-            [Blob("badges/{rand-guid}.png", FileAccess.Write, Connection = "AzureWebJobsStorage")]
-            BlobClient blobClient,
-            ILogger log)
+        public BadgeDownloader(BlobServiceClient blobServiceClient, ILogger<BadgeDownloader> logger)
         {
-            log.LogInformation($"C# ServiceBus queue trigger function processed message: {message.Body.ToString()}");
+            _blobServiceClient = blobServiceClient;
+            _logger = logger;
+        }
 
-            var content = JsonConvert.DeserializeObject<MessageContent>(message.Body.ToString());
+        [Function(nameof(BadgeDownloader))]
+        public async Task Run(
+            [ServiceBusTrigger("%badgeQueueName%", Connection = "badgeservicebus")]
+            ServiceBusReceivedMessage message,
+            ServiceBusMessageActions messageActions)
+
+        {
+            var body = message.Body.ToString();
+            _logger.LogInformation($"C# ServiceBus queue trigger function processed message: {body}");
+
+            MessageContent content = JsonConvert.DeserializeObject<MessageContent>(body);
+
+
             if (content == null)
             {
-                log.LogError("Failed to deserialize message body");
-                await messageActions.DeadLetterMessageAsync(message, "Failed to deserialize message body");
+                _logger.LogError("Failed to deserialize message body");
+                await messageActions.DeadLetterMessageAsync(message, deadLetterReason: "Failed to deserialize message body");
                 throw new InvalidOperationException("Failed to deserialize message body");
             }
             else if (string.IsNullOrEmpty(content.Url))
             {
-                log.LogError("Message does not contain a valid image URL");
-                await messageActions.DeadLetterMessageAsync(message, "Message does not contain a valid image URL");
+                _logger.LogError("Message does not contain a valid image URL");
+                await messageActions.DeadLetterMessageAsync(message, deadLetterReason: "Message does not contain a valid image URL");
                 throw new InvalidOperationException("Message does not contain a valid image URL");
             }
 
@@ -43,31 +50,42 @@ namespace BadgeProcessingFunction
 
             if (results.IsSuccessStatusCode)
             {
+                var containerClient = _blobServiceClient.GetBlobContainerClient("badges");
+                containerClient.CreateIfNotExists();
+                var blobName = $"badge-{Guid.NewGuid()}.png";
+                var blobClient = containerClient.GetBlobClient(blobName);
                 var stream = await results.Content.ReadAsStreamAsync();
                 await blobClient.UploadAsync(stream);
 
                 blobClient.SetMetadata(new System.Collections.Generic.Dictionary<string, string>
                 {
-                    { "approval-timestamp", content.ApprovalTimeStamp },
-                    { "user-prompt", content.UserPrompt }
+                    { "approvaltimestamp", content.ApprovalTimeStamp },
+                    { "userprompt", content.UserPrompt }
                 });
             }
             else
             {
-                log.LogError($"Failed to download image from {content.Url}");
-                await messageActions.DeadLetterMessageAsync(message, $"Failed to download image from {content.Url}\")");
+                _logger.LogError($"Failed to download image from {content.Url}");
+                await messageActions.DeadLetterMessageAsync(message, deadLetterReason: $"Failed to download image from {content.Url}\")");
                 throw new InvalidOperationException($"Failed to download image from {content.Url}");
             }
-            await messageActions.CompleteMessageAsync(message);
+
+
         }
     }
 
     internal class MessageContent
     {
+        [JsonProperty("url")]
         public string Url { get; }
+
+        [JsonProperty("approvalTimeStamp")]
         public string ApprovalTimeStamp { get; }
+
+        [JsonProperty("userPrompt")]
         public string UserPrompt { get; }
 
+        [JsonConstructor]
         public MessageContent(string url, string approvalTimeStamp, string userPrompt)
         {
             Url = url;
@@ -88,6 +106,4 @@ namespace BadgeProcessingFunction
             return HashCode.Combine(Url, ApprovalTimeStamp, UserPrompt);
         }
     }
-
-
 }

@@ -1,8 +1,8 @@
 {
   "profiles": {
-    "BadgeProcessingFunction": {
+    "BPF2": {
       "commandName": "Project",
-      "commandLineArgs": "--port 7254",
+      "commandLineArgs": "--port 7075",
       "launchBrowser": false
     }
   }
