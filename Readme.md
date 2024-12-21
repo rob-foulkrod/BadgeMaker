@@ -36,7 +36,15 @@ The BadgeViewApp displays digital badges created by the `BadgeMaker` and approve
  - Display approved badges
 
 ----
-Notes: 
-Select Dall-e-3 regions
-Docker Desktop
-dotnet 8
+
+## Now works with the Azure Developer CLI  
+
+Requires locally:
+- Docker Desktop
+- Dotnet 8 sdk
+
+```
+azd init -t rob-foulkrod/BadgeMaker
+azd up
+```
+Deploy to a Dall-e-3 Standard compatable region
