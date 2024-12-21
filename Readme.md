@@ -4,7 +4,7 @@ This system is designed to streamline the creation and processing of digital bad
 
 ## Components
 
-### BadgeMaker
+### BadgeMaker (BlazorFrontEndApp)
 
 The BadgeMaker is a Blazor front-end application that provides a user-friendly interface for designing and generating digital badges. It allows users to customize badges with various templates, colors, and text options.
 
@@ -19,8 +19,8 @@ The BadgeMaker is a Blazor front-end application that provides a user-friendly i
 
 The BadgeProcessingFunction is a backend service responsible for processing badge data. It handles tasks such as storing badge information, generating unique identifiers for badges, and integrating with external systems for badge verification.
 
-- **Project File**: `BadgeProcessingFunction/BadgeProcessingFunction/BadgeProcessingFunction.sln`
-- **Framework**: dotnet 6
+- **Project File**: `BadgeProcessingFunction/BPF/BPF2.csproj`
+- **Framework**: dotnet 8
 - **Key Features**:
   - Badge data processing
   - Unique identifier generation
@@ -35,3 +35,8 @@ The BadgeViewApp displays digital badges created by the `BadgeMaker` and approve
 **Key Features**:
  - Display approved badges
 
+----
+Notes: 
+Select Dall-e-3 regions
+Docker Desktop
+dotnet 8
