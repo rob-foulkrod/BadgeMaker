@@ -25,6 +25,19 @@ module monitoring 'br/public:avm/ptn/azd/monitoring:0.1.0' = {
   }
 }
 
+//give container app permissiont to app insights
+//Monitoring Metrics Publisher Role (3913510d-42f4-4e42-8a64-420c390055eb)
+//the conainer app uses ManagedIdentity to talk to App Insights
+module monitoringMetricsPublisher 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'monitoringMetricsPublisherDeployment'
+  params: {
+    principalId: badgeViewAppIdentity.outputs.principalId
+    resourceId: monitoring.outputs.applicationInsightsResourceId
+    roleDefinitionId: '3913510d-42f4-4e42-8a64-420c390055eb'
+    roleName: 'Monitoring Metrics Publisher'
+  }
+}
+
 module aiAccount 'br/public:avm/res/cognitive-services/account:0.9.0' = {
   name: 'aiAccountDeployment'
   params: {
@@ -285,7 +298,7 @@ module badgeViewAppFetchLatestImage './modules/fetch-container-image.bicep' = {
   name: 'badgeViewApp-fetch-image'
   params: {
     exists: badgeViewAppExists //was a parameter. Keep an eye on it
-    name: 'badge-view-app'
+    name: '${abbrs.appContainerApps}badgeviewapp${resourceToken}'
   }
 }
 
