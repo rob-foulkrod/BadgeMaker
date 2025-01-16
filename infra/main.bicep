@@ -41,6 +41,7 @@ module resources './resources.bicep' = {
   }
 }
 
+//leaving these here to show them appearing in the .env file. But this deployment doesn't make use of these values.
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = resources.outputs.AZURE_CONTAINER_REGISTRY_ENDPOINT
 output AZURE_RESOURCE_BADGE_VIEW_APP_ID string = resources.outputs.AZURE_RESOURCE_BADGE_VIEW_APP_ID
 output AZURE_RESOURCE_BADGE_MAKER_ID string = resources.outputs.AZURE_RESOURCE_BADGE_MAKER_ID
