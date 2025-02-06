@@ -1,0 +1,3 @@
+- powershell version 7 (pwsh)
+- Docker Desktop
+- Dotnet 8 sdk
