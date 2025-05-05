@@ -9,10 +9,12 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-@secure()
-param badgeViewAppDefinition object
 
-param badgeViewAppExists bool
+param badgeViewAppDefinition object = {
+  settings: []
+}
+
+param badgeViewAppExists bool = false
 
 param deployImages bool = true
 
