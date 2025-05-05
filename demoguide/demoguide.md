@@ -34,7 +34,7 @@
 **Demo scenario story:** 
 The BadgeMaker is a Blazor front-end application that provides a user-friendly interface for designing and generating digital badges. It allows users to customize badges with various templates, colors, and text options. Once a badge has been created, it can be "Approved" where it will be sent to an Azure Function for approval. The Azure Function will download the badge from the temporary Dalle storage and drop it permanatly into badge storage. The Approved badges will be available for viewing in the BadgeViewApp. Applicaiton insights can be used to see the end to end process.
 
-![Example Application Insights](./images/appinsights.png)
+![Example Application Insights](https://github.com/rob-foulkrod/BadgeMaker/blob/2cfbfa32bb0a0ee3187b080d82c073463e444835/demoguide/images/appInsights.png)
 
 ***
 ### 1. What Resources are getting deployed
@@ -71,15 +71,15 @@ The demo deploys three appllications and the azure resources to support them.
 
 #### Create a Badge
 
-![Example of deployed Endpoints](./images/endpoints.png)
+![Example of deployed Endpoints](https://github.com/rob-foulkrod/BadgeMaker/blob/2cfbfa32bb0a0ee3187b080d82c073463e444835/demoguide/images/endpoints.png)
 
 BadgeMaker is a Blazor front-end  that communicated with DALL-E-3 congnitive service. Open the Azure App Service from the deployment. Click the Badge Generator menu item on the left. Enter a description of the badge you want to create and click *Generate Badge*. Click it again to regenerate the image until you get something you like. 
 
-![Badge for approval](./images/approval.png)
+![Badge for approval](https://github.com/rob-foulkrod/BadgeMaker/blob/2cfbfa32bb0a0ee3187b080d82c073463e444835/demoguide/images/approval.png)
 
 Click the Approve Button and a message will be added to the Service Bus queue sbq-%random%. The message will contain the image URL in Dalle's temporary storage, and the prompt that created the image. The App Service's Managed Identity is used to authenticate to the Message Queue and Cognitive services.
 
-![App Service Managed Identity Role Assignments](./images/appservice-roleassignments.png)
+![App Service Managed Identity Role Assignments](https://github.com/rob-foulkrod/BadgeMaker/blob/2cfbfa32bb0a0ee3187b080d82c073463e444835/demoguide/images/appservice-roleassignments.png)
 
 #### Function Approval
 
@@ -94,7 +94,7 @@ Open the Container App endpoint to see the Approved badges viewer. Once the func
 
 #### Application Insights
 
-![Example Application Insights](./images/appinsights.png)
+![Example Application Insights](https://github.com/rob-foulkrod/BadgeMaker/blob/2cfbfa32bb0a0ee3187b080d82c073463e444835/demoguide/images/appInsights.png)
 
 Applicaiton isnights has been instrumented in all three applications. After a badge has been generated and approved, the end to end process shgould be visible in the Application map. Give time for the consumption SKU function to 'wake up' and process the messages in the queue.
 
