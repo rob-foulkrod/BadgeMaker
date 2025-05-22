@@ -17,21 +17,6 @@ public class ServiceBusConfigTests
         Assert.False(result);
     }
 
-    [Fact]
-    public void IsConfigured_ShouldReturnFalse_WhenOnlyConnectionStringIsSet()
-    {
-        // Arrange
-        var config = new ServiceBusConfig
-        {
-            connectionString = "some-connection-string"
-        };
-
-        // Act
-        var result = config.IsConfigured;
-
-        // Assert
-        Assert.False(result);
-    }
 
     [Fact]
     public void IsConfigured_ShouldReturnFalse_WhenOnlyQueueNameIsSet()
@@ -55,7 +40,7 @@ public class ServiceBusConfigTests
         // Arrange
         var config = new ServiceBusConfig
         {
-            connectionString = "some-connection-string",
+            endpoint = "https://example.com",
             queueName = "some-queue-name"
         };
 
