@@ -31,7 +31,7 @@ if (serviceBusConfig == null)
 }
 
 builder.Services.AddSingleton<ServiceBusConfig>(serviceBusConfig);
-builder.Services.AddSingleton<BadgeGeneratorViewModel>();
+builder.Services.AddScoped<BadgeGeneratorViewModel>();
 builder.Services.AddSingleton<IOpenAIService, OpenAIService>();
 builder.Services.AddSingleton<IServiceBusService, ServiceBusService>();
 
