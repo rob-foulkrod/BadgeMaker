@@ -20,6 +20,7 @@ param deployImages bool = true
 
 var tags = {
   'azd-env-name': environmentName
+  SecurityControl: 'Ignore'
 }
 
 // Organize resources in a resource group
