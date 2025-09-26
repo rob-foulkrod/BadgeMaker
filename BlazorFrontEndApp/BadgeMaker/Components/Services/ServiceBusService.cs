@@ -3,6 +3,7 @@ using Azure.Messaging.ServiceBus;
 using BadgeMaker.Components.Interfaces;
 using BadgeMaker.Components.Models;
 using System.Diagnostics;
+using System.Text.Json;
 
 namespace BadgeMaker.Components.Services;
 
@@ -19,12 +20,12 @@ public class ServiceBusService : IServiceBusService
     public bool IsConfigured => serviceBusConfig.IsConfigured;
 
 
-    public async Task SendMessageAsync(string messageBody)
+    public async Task SendMessageAsync(string imageUri, string prompt, DateTime approvalTimestamp)
     {
         using var activity = ActivitySource.StartActivity("SendBadgeApproval");
         activity?.SetTag("servicebus.queue", serviceBusConfig.queueName);
         activity?.SetTag("servicebus.endpoint", serviceBusConfig.endpoint);
-        activity?.SetTag("servicebus.message_size_bytes", messageBody?.Length ?? 0);
+        activity?.SetTag("badge.prompt.length", prompt.Length);
 
         if (!IsConfigured)
         {
@@ -39,7 +40,29 @@ public class ServiceBusService : IServiceBusService
             var credential = new DefaultAzureCredential();
             await using var client = new ServiceBusClient(serviceBusConfig.endpoint, credential);
             await using var sender = client.CreateSender(serviceBusConfig.queueName);
-            var message = new ServiceBusMessage(messageBody);
+
+            var payload = new
+            {
+                url = imageUri,
+                approvalTimeStamp = approvalTimestamp.ToString("o"),
+                userPrompt = prompt,
+                traceId = activity?.TraceId.ToString(),
+                spanId = activity?.SpanId.ToString()
+            };
+
+            var serializedPayload = JsonSerializer.Serialize(payload);
+            activity?.SetTag("servicebus.message_size_bytes", serializedPayload.Length);
+
+            var message = new ServiceBusMessage(serializedPayload);
+
+            if (activity != null)
+            {
+                message.ApplicationProperties["traceparent"] = activity.Id;
+                if (!string.IsNullOrWhiteSpace(activity.TraceStateString))
+                {
+                    message.ApplicationProperties["tracestate"] = activity.TraceStateString!;
+                }
+            }
 
             var stopwatch = Stopwatch.StartNew();
             await sender.SendMessageAsync(message);

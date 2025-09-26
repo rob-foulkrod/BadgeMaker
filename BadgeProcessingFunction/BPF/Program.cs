@@ -5,6 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Azure.Identity;
 using Azure.Storage.Blobs;
+using Azure.Monitor.OpenTelemetry.AspNetCore;
+using OpenTelemetry.Trace;
 
 
 
@@ -33,12 +35,35 @@ builder.Services.AddSingleton(x =>
         uri = configuration["AzureWebJobsStorage"];
     }
 
+    if (string.IsNullOrEmpty(uri))
+    {
+        throw new InvalidOperationException("AzureWebJobsStorage blob endpoint configuration not found.");
+    }
+
     var blobServiceClient = new BlobServiceClient(new Uri(uri), credential);
     return blobServiceClient;
 });
 
 
 builder.Services.ConfigureFunctionsApplicationInsights();
+
+builder.Services
+    .AddOpenTelemetry()
+    .UseAzureMonitor(options =>
+    {
+        var connectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"] ??
+            Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING");
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            options.ConnectionString = connectionString;
+        }
+    })
+    .WithTracing(tracing =>
+    {
+        tracing.AddSource("BadgeMaker.Function");
+        tracing.AddSource("Azure.Messaging.ServiceBus");
+        tracing.AddSource("Azure.Storage.Blobs");
+    });
 
 builder.Build().Run();
 

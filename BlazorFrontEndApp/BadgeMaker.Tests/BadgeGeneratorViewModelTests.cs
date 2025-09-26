@@ -67,14 +67,14 @@ public class BadgeGeneratorViewModelTests
         // Arrange
         viewModel.ImageUri = "http://example.com/image.jpg";
         viewModel.UserPrompt = "Valid prompt";
-        mockServiceBusService.Setup(s => s.SendMessageAsync(It.IsAny<string>()))
+        mockServiceBusService.Setup(s => s.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>()))
                              .Returns(Task.CompletedTask);
 
         // Act
         await viewModel.ApproveImage();
 
         // Assert
-        mockServiceBusService.Verify(s => s.SendMessageAsync(It.IsAny<string>()), Times.Once);
+    mockServiceBusService.Verify(s => s.SendMessageAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<DateTime>()), Times.Once);
         Assert.Equal("Image approved and message sent to Service Bus.", viewModel.Message);
     }
 }

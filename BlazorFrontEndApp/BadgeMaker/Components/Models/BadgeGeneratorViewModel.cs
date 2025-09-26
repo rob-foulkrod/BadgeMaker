@@ -4,7 +4,6 @@ using Azure.Messaging.ServiceBus;
 using BadgeMaker.Components.Interfaces;
 using OpenAI.Images;
 using System.Diagnostics;
-using System.Text.Json;
 
 namespace BadgeMaker.Components.Models;
 
@@ -102,18 +101,10 @@ public class BadgeGeneratorViewModel
 
         Message = loadingMessage;
 
-        var messageBody = new
-        {
-            url = ImageUri, // Assuming the first image is the one to be approved
-            approvalTimeStamp = DateTime.UtcNow.ToString("o"), // ISO 8601 format
-            userPrompt = UserPrompt
-        };
+        var approvalTimestamp = DateTime.UtcNow;
+        activity?.SetTag("badge.approval.timestamp", approvalTimestamp.ToString("o"));
 
-        string jsonMessage = JsonSerializer.Serialize(messageBody);
-
-        // create a Service Bus message
-
-        await serviceBusService.SendMessageAsync(jsonMessage);
+        await serviceBusService.SendMessageAsync(ImageUri, UserPrompt, approvalTimestamp);
 
         Message = "Image approved and message sent to Service Bus.";
         ImageUri = null;

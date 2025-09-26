@@ -1,7 +1,11 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -12,6 +16,7 @@ namespace BPF2
     {
         private readonly BlobServiceClient _blobServiceClient;
         private readonly ILogger<BadgeDownloader> _logger;
+        private static readonly ActivitySource ActivitySource = new("BadgeMaker.Function");
 
         public BadgeDownloader(BlobServiceClient blobServiceClient, ILogger<BadgeDownloader> logger)
         {
@@ -26,51 +31,105 @@ namespace BPF2
             ServiceBusMessageActions messageActions)
 
         {
-            var body = message.Body.ToString();
-            _logger.LogInformation($"C# ServiceBus queue trigger function processed message: {body}");
+            var traceParent = message.ApplicationProperties.TryGetValue("traceparent", out var traceParentObj)
+                ? traceParentObj?.ToString()
+                : null;
+            var traceState = message.ApplicationProperties.TryGetValue("tracestate", out var traceStateObj)
+                ? traceStateObj?.ToString()
+                : null;
 
-            MessageContent content = JsonConvert.DeserializeObject<MessageContent>(body);
+            using var activity = !string.IsNullOrWhiteSpace(traceParent)
+                ? ActivitySource.StartActivity("ProcessBadgeApproval", ActivityKind.Consumer, traceParent)
+                : ActivitySource.StartActivity("ProcessBadgeApproval", ActivityKind.Consumer);
 
+            activity?.SetTag("servicebus.message.id", message.MessageId);
+            activity?.SetTag("servicebus.delivery_count", message.DeliveryCount);
+
+            string body = message.Body.ToString() ?? string.Empty;
+            activity?.SetTag("servicebus.message_size_bytes", body?.Length ?? 0);
+
+            _logger.LogInformation("Processing badge approval message");
+
+            if (string.IsNullOrWhiteSpace(body))
+            {
+                const string emptyBodyReason = "Message body was empty";
+                _logger.LogError(emptyBodyReason);
+                activity?.SetStatus(ActivityStatusCode.Error, emptyBodyReason);
+                await messageActions.DeadLetterMessageAsync(message, deadLetterReason: emptyBodyReason);
+                throw new InvalidOperationException(emptyBodyReason);
+            }
+
+            MessageContent? content = JsonConvert.DeserializeObject<MessageContent>(body);
 
             if (content == null)
             {
                 _logger.LogError("Failed to deserialize message body");
+                activity?.SetStatus(ActivityStatusCode.Error, "Deserialization failed");
                 await messageActions.DeadLetterMessageAsync(message, deadLetterReason: "Failed to deserialize message body");
                 throw new InvalidOperationException("Failed to deserialize message body");
             }
             else if (string.IsNullOrEmpty(content.Url))
             {
                 _logger.LogError("Message does not contain a valid image URL");
+                activity?.SetStatus(ActivityStatusCode.Error, "Missing image URL");
                 await messageActions.DeadLetterMessageAsync(message, deadLetterReason: "Message does not contain a valid image URL");
                 throw new InvalidOperationException("Message does not contain a valid image URL");
             }
 
-            var httpClient = new System.Net.Http.HttpClient();
+            activity?.SetTag("badge.prompt", content.UserPrompt);
+            activity?.SetTag("badge.approval.timestamp", content.ApprovalTimeStamp);
+            if (!string.IsNullOrWhiteSpace(content.TraceId))
+            {
+                activity?.SetTag("trace.id", content.TraceId);
+            }
+
+            using var httpClient = new HttpClient();
+            var stopwatch = Stopwatch.StartNew();
             var results = await httpClient.GetAsync(content.Url);
+            stopwatch.Stop();
+            activity?.SetTag("http.get.duration_ms", stopwatch.ElapsedMilliseconds);
+            activity?.SetTag("http.status_code", (int)results.StatusCode);
 
             if (results.IsSuccessStatusCode)
             {
                 var containerClient = _blobServiceClient.GetBlobContainerClient("badges");
-                containerClient.CreateIfNotExists();
+                await containerClient.CreateIfNotExistsAsync();
                 var blobName = $"badge-{Guid.NewGuid()}.png";
                 var blobClient = containerClient.GetBlobClient(blobName);
                 var stream = await results.Content.ReadAsStreamAsync();
-                await blobClient.UploadAsync(stream);
 
-                blobClient.SetMetadata(new System.Collections.Generic.Dictionary<string, string>
+                var metadata = new Dictionary<string, string>
                 {
                     { "approvaltimestamp", content.ApprovalTimeStamp },
                     { "userprompt", content.UserPrompt }
-                });
+                };
+
+                if (!string.IsNullOrWhiteSpace(content.TraceId))
+                {
+                    metadata["traceid"] = content.TraceId!;
+                }
+                if (!string.IsNullOrWhiteSpace(content.SpanId))
+                {
+                    metadata["spanid"] = content.SpanId!;
+                }
+
+                await blobClient.UploadAsync(stream, new BlobUploadOptions { Metadata = metadata });
+
+                activity?.SetTag("blob.name", blobName);
+                activity?.SetTag("processing.success", true);
+                activity?.AddEvent(new ActivityEvent("BadgeStored"));
+                _logger.LogInformation("Badge stored as {BlobName}", blobName);
             }
             else
             {
-                _logger.LogError($"Failed to download image from {content.Url}");
-                await messageActions.DeadLetterMessageAsync(message, deadLetterReason: $"Failed to download image from {content.Url}\")");
-                throw new InvalidOperationException($"Failed to download image from {content.Url}");
+                var messageText = $"Failed to download image from {content.Url}";
+                _logger.LogError(messageText);
+                activity?.SetStatus(ActivityStatusCode.Error, messageText);
+                await messageActions.DeadLetterMessageAsync(message, deadLetterReason: messageText);
+                throw new InvalidOperationException(messageText);
             }
 
-
+            activity?.SetStatus(ActivityStatusCode.Ok);
         }
     }
 
@@ -85,25 +144,35 @@ namespace BPF2
         [JsonProperty("userPrompt")]
         public string UserPrompt { get; }
 
+        [JsonProperty("traceId")]
+        public string? TraceId { get; }
+
+        [JsonProperty("spanId")]
+        public string? SpanId { get; }
+
         [JsonConstructor]
-        public MessageContent(string url, string approvalTimeStamp, string userPrompt)
+        public MessageContent(string url, string approvalTimeStamp, string userPrompt, string? traceId = null, string? spanId = null)
         {
             Url = url;
             ApprovalTimeStamp = approvalTimeStamp;
             UserPrompt = userPrompt;
+            TraceId = traceId;
+            SpanId = spanId;
         }
 
-        public override bool Equals(object obj)
+    public override bool Equals(object? obj)
         {
             return obj is MessageContent other &&
                    Url == other.Url &&
                    ApprovalTimeStamp == other.ApprovalTimeStamp &&
-                   UserPrompt == other.UserPrompt;
+                   UserPrompt == other.UserPrompt &&
+                   TraceId == other.TraceId &&
+                   SpanId == other.SpanId;
         }
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(Url, ApprovalTimeStamp, UserPrompt);
+            return HashCode.Combine(Url, ApprovalTimeStamp, UserPrompt, TraceId, SpanId);
         }
     }
 }
