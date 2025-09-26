@@ -8,7 +8,7 @@ To set up Badge Maker, follow these steps to provide the necessary configuration
    - Ensure that Badge Maker can communicate with your DALL-E 3 instance.
 
 1. **Create a `secrets.json` File:**
-   - Using the cli or visual studio, create a secrets.josn file
+   - Using the CLI or Visual Studio, create a `secrets.json` file
    - Add the necessary configuration details in JSON format.
 
 2. **Optional: Service Bus Deployment (Connection String):**
@@ -27,7 +27,8 @@ To set up Badge Maker, follow these steps to provide the necessary configuration
       "servicebus": {
         "connectionString": "Endpoint=sb://[instance-name].servicebus.windows.net/;SharedAccessKeyName=Badgemaker-app;SharedAccessKey=[sharedaccesskey]=;EntityPath=[queuename]",
         "queueName": "badgeapproved"
-      }
+      },
+      "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=[key];IngestionEndpoint=https://[region].in.applicationinsights.azure.com/"
     }
     ```
   
@@ -57,6 +58,11 @@ Or once deployed to an app service, the configuration can look like this:
   {
     "name": "servicebus__queueName",
     "value": "[queuename]",
+    "slotSetting": false
+  },
+  {
+    "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+    "value": "InstrumentationKey=[key];IngestionEndpoint=https://[region].in.applicationinsights.azure.com/",
     "slotSetting": false
   }
 

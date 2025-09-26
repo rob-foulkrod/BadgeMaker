@@ -1,8 +1,10 @@
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using BadgeMaker.Components;
 using BadgeMaker.Components.Interfaces;
 using BadgeMaker.Components.Models;
 using BadgeMaker.Components.Services;
 using Microsoft.FluentUI.AspNetCore.Components;
+using OpenTelemetry.Trace;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +27,7 @@ builder.Services.AddSingleton<OpenAIConfig>(openApiConfig);
 
 var serviceBusConfig = builder.Configuration.GetSection("serviceBus").Get<ServiceBusConfig>();
 if (serviceBusConfig == null)
-    {
+{
     SystemMessages.ConfigurationWarnings.Add("ServiceBus configuration is missing");
     serviceBusConfig = new ServiceBusConfig();
 }
@@ -35,8 +37,21 @@ builder.Services.AddScoped<BadgeGeneratorViewModel>();
 builder.Services.AddSingleton<IOpenAIService, OpenAIService>();
 builder.Services.AddSingleton<IServiceBusService, ServiceBusService>();
 
-
-builder.Services.AddApplicationInsightsTelemetry();
+builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor(options =>
+    {
+        var connectionString = builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            options.ConnectionString = connectionString;
+        }
+    })
+    .WithTracing(tracing =>
+    {
+        tracing.AddSource("BadgeMaker.OpenAIService");
+        tracing.AddSource("BadgeMaker.ServiceBus");
+        tracing.AddSource("BadgeMaker.UI");
+    });
 
 var app = builder.Build();
 
