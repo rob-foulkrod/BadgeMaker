@@ -14,7 +14,7 @@
 <body>
     <Routes />
     <script src="_framework/blazor.web.js"></script>
-    <script src="_content/Microsoft.FluentUI.AspNetCore.Components/js/web-components-v2.5.16.min.js" type="module" async></script>
+    @* Fluent UI 4.x loads its modules via JS initializers; avoid hard-coded web-components URLs that don’t exist in this package version. *@
 </body>
 
 </html>
