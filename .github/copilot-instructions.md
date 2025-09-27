@@ -192,3 +192,10 @@ azd up
 - Follow Microsoft content policies for AI-generated content
 - Implement retry policies for transient failures
 - Use health checks for production monitoring
+
+## Commit Guidelines
+- Use the Conventional Commits format for every commit message: `<type>(optional-scope): concise summary`.
+- Prefer lowercase types such as `feat`, `fix`, `chore`, `docs`, `refactor`, `style`, `test`, or `build`.
+- Keep the summary in the imperative mood (e.g., `fix fluent ui script path`).
+- When helpful, include an optional scope (e.g., `fix(ui): remove 404 for fluent script`).
+- Add additional context in the body when necessary, separated from the summary by a blank line.
