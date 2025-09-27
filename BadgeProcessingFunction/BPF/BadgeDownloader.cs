@@ -29,7 +29,7 @@ namespace BPF2
             var body = message.Body.ToString();
             _logger.LogInformation($"C# ServiceBus queue trigger function processed message: {body}");
 
-            MessageContent content = JsonConvert.DeserializeObject<MessageContent>(body);
+            MessageContent? content = JsonConvert.DeserializeObject<MessageContent>(body);
 
 
             if (content == null)
@@ -93,7 +93,7 @@ namespace BPF2
             UserPrompt = userPrompt;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is MessageContent other &&
                    Url == other.Url &&

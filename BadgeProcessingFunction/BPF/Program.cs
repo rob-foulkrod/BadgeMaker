@@ -33,6 +33,11 @@ builder.Services.AddSingleton(x =>
         uri = configuration["AzureWebJobsStorage"];
     }
 
+    if (string.IsNullOrEmpty(uri))
+    {
+        throw new InvalidOperationException("AzureWebJobsStorage blobUri configuration is missing.");
+    }
+
     var blobServiceClient = new BlobServiceClient(new Uri(uri), credential);
     return blobServiceClient;
 });
