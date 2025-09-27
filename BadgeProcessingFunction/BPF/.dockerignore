@@ -1,0 +1,8 @@
+bin/
+obj/
+**/bin/
+**/obj/
+local.settings.json
+.vscode/
+*.user
+*.suo
