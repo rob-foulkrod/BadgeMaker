@@ -36,11 +36,23 @@ public class OpenAIService : IOpenAIService
 
         var credential = new DefaultAzureCredential();
 
-        AzureOpenAIClient client = new AzureOpenAIClient(new Uri(openAIConfig.endpoint), credential);
+        var endpoint = openAIConfig.endpoint;
+        var deployment = openAIConfig.deployment;
 
-        var imageGenerations = await client.GetImageClient(openAIConfig.deployment).GenerateImageAsync(basePrompt + prompt, options);
+        if (string.IsNullOrEmpty(endpoint))
+        {
+            throw new InvalidOperationException("OpenAI endpoint is not configured.");
+        }
+        if (string.IsNullOrEmpty(deployment))
+        {
+            throw new InvalidOperationException("OpenAI deployment name is not configured.");
+        }
 
-        return imageGenerations.Value.ImageUri.ToString();
+        AzureOpenAIClient client = new AzureOpenAIClient(new Uri(endpoint), credential);
+
+        var imageGenerations = await client.GetImageClient(deployment).GenerateImageAsync(basePrompt + prompt, options);
+
+        return imageGenerations.Value.ImageUri?.ToString() ?? string.Empty;
 
     }
 }
