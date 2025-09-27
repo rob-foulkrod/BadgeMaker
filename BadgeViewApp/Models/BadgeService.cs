@@ -1,8 +1,6 @@
 using Azure.Identity;
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.Configuration;
-using System.Linq;
-
 public class BadgeService
 {
     private readonly BlobServiceClient _blobClient;
