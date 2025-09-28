@@ -1,4 +1,5 @@
 using System;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Azure.Messaging.ServiceBus;
 using Azure.Storage.Blobs;
@@ -12,11 +13,13 @@ namespace BPF2
     {
         private readonly BlobServiceClient _blobServiceClient;
         private readonly ILogger<BadgeDownloader> _logger;
+        private readonly IHttpClientFactory _httpClientFactory;
 
-        public BadgeDownloader(BlobServiceClient blobServiceClient, ILogger<BadgeDownloader> logger)
+        public BadgeDownloader(BlobServiceClient blobServiceClient, ILogger<BadgeDownloader> logger, IHttpClientFactory httpClientFactory)
         {
             _blobServiceClient = blobServiceClient;
             _logger = logger;
+            _httpClientFactory = httpClientFactory;
         }
 
         [Function(nameof(BadgeDownloader))]
@@ -46,16 +49,16 @@ namespace BPF2
                     return;
                 }
 
-                using var httpClient = new System.Net.Http.HttpClient();
-                var results = await httpClient.GetAsync(content.Url);
+                var httpClient = _httpClientFactory.CreateClient();
+                using var response = await httpClient.GetAsync(content.Url);
 
-                if (results.IsSuccessStatusCode)
+                if (response.IsSuccessStatusCode)
                 {
                     var containerClient = _blobServiceClient.GetBlobContainerClient("badges");
                     var blobName = $"badge-{Guid.NewGuid()}.png";
                     var blobClient = containerClient.GetBlobClient(blobName);
                     
-                    using var stream = await results.Content.ReadAsStreamAsync();
+                    using var stream = await response.Content.ReadAsStreamAsync();
                     await blobClient.UploadAsync(stream, overwrite: true);
 
                     await blobClient.SetMetadataAsync(new System.Collections.Generic.Dictionary<string, string>
@@ -71,8 +74,8 @@ namespace BPF2
                 }
                 else
                 {
-                    _logger.LogError($"Failed to download image from {content.Url}. Status: {results.StatusCode}");
-                    await messageActions.DeadLetterMessageAsync(message, deadLetterReason: $"Failed to download image from {content.Url}. Status: {results.StatusCode}");
+                    _logger.LogError($"Failed to download image from {content.Url}. Status: {response.StatusCode}");
+                    await messageActions.DeadLetterMessageAsync(message, deadLetterReason: $"Failed to download image from {content.Url}. Status: {response.StatusCode}");
                 }
             }
             catch (Exception ex)
