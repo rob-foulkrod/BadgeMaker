@@ -2,11 +2,10 @@
   "version": "2.0",
   "extensions": {
     "serviceBus": {
-      "prefetchCount": 100,
       "messageHandlerOptions": {
         "autoComplete": false,
-        "maxConcurrentCalls": 16,
-        "maxAutoRenewDuration": "00:05:00"
+        "maxConcurrentCalls": 1,
+        "maxAutoRenewDuration": "00:10:00"
       }
     }
   },

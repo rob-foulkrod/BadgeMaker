@@ -2,21 +2,135 @@
 
 name: tdd-badge-maker
 metadata:
-    template: tdd-badge-maker@0.0.1
+    template: tdd-badge-maker@0.0.2
 infra:
-   provider: "bicep"
+    provider: bicep
+    parameters:
+        badgeMakerWebImageRepository: ${SERVICE_BADGE_FRONT_END_APP_IMAGE_NAME=badge-front-end-app}
+        badgeMakerWebImageTag: ${SERVICE_BADGE_FRONT_END_APP_IMAGE_TAG=latest}
+        badgeProcessingFunctionImageRepository: ${SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_NAME=badge-processing-function}
+        badgeProcessingFunctionImageTag: ${SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_TAG=latest}
 services:
-    badge-front-end-app:
-        project: BlazorFrontEndApp/BadgeMaker
-        host: appservice
-        language: dotnet
+    # badge-front-end-app:
+    #     project: ./BlazorFrontEndApp/BadgeMaker
+    #     host: appservice
+    #     language: dotnet
     badge-view-app:
-        project: BadgeViewApp
+        project: ./BadgeViewApp
         host: containerapp
         language: dotnet
         docker:
             path: Dockerfile
-    badge-processing-function:
-        project: ./BadgeProcessingFunction/BPF
-        language: dotnet
-        host: function
+            remoteBuild: true
+    # badge-processing-function:
+    #     project: ./BadgeProcessingFunction/BPF
+    #     language: dotnet
+    #     host: function
+hooks:
+    postprovision:
+        - shell: pwsh
+          interactive: true
+          run: |
+              $ErrorActionPreference = 'Stop'
+              $acrLoginServer = (azd env get-value AZURE_CONTAINER_REGISTRY_ENDPOINT).Trim()
+              if ([string]::IsNullOrWhiteSpace($acrLoginServer)) {
+                  throw 'AZURE_CONTAINER_REGISTRY_ENDPOINT is not set. Run "azd provision" first.'
+              }
+              $registryName = $acrLoginServer.Split('.')[0]
+
+              function Invoke-AcrBuild {
+                  param(
+                      [string]$ServicePath,
+                      [string]$DefaultImageName,
+                      [string]$NameKey,
+                      [string]$TagKey
+                  )
+
+                  Push-Location $ServicePath
+                  try {
+                      $imageName = (azd env get-value $NameKey).Trim()
+                      if ([string]::IsNullOrWhiteSpace($imageName)) {
+                          $imageName = $DefaultImageName
+                      }
+                      $imageTag = (azd env get-value $TagKey).Trim()
+                      if ([string]::IsNullOrWhiteSpace($imageTag)) {
+                          $imageTag = (Get-Date -Format 'yyyyMMddHHmmss')
+                      }
+                      az acr build --registry $registryName --image "$($imageName):$($imageTag)" --file Dockerfile .
+                      azd env set $NameKey $imageName | Out-Null
+                      azd env set $TagKey $imageTag | Out-Null
+                  }
+                  finally {
+                      Pop-Location
+                  }
+              }
+
+              Invoke-AcrBuild './BlazorFrontEndApp/BadgeMaker' 'badge-front-end-app' 'SERVICE_BADGE_FRONT_END_APP_IMAGE_NAME' 'SERVICE_BADGE_FRONT_END_APP_IMAGE_TAG'
+              Invoke-AcrBuild './BadgeProcessingFunction/BPF' 'badge-processing-function' 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_NAME' 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_TAG'
+              
+              Write-Host "Container images built successfully. Run 'azd deploy' again to switch to container deployment."
+    postdeploy:
+        - shell: pwsh
+          interactive: true
+          run: |
+              $ErrorActionPreference = 'Stop'
+
+              function Get-EnvValue([string]$Key) {
+                  $value = (azd env get-value $Key 2>$null).Trim()
+                  if ([string]::IsNullOrWhiteSpace($value)) {
+                      throw "Environment value '$Key' is not set. Run 'azd up' to provision resources."
+                  }
+                  return $value
+              }
+
+              function Get-ResourceInfo([string]$ResourceId) {
+                  $segments = $ResourceId.Split('/', [System.StringSplitOptions]::RemoveEmptyEntries)
+                  $rgIndex = [Array]::IndexOf($segments, 'resourceGroups')
+                  if ($rgIndex -lt 0 -or $rgIndex + 1 -ge $segments.Length) {
+                      throw "Unable to parse resource group from resource id '$ResourceId'."
+                  }
+                  return [pscustomobject]@{
+                      ResourceGroup = $segments[$rgIndex + 1]
+                      Name = $segments[$segments.Length - 1]
+                  }
+              }
+
+              $resourceGroup = Get-EnvValue 'AZURE_RESOURCE_GROUP_NAME'
+              $webAppName = Get-EnvValue 'AZURE_WEBAPP_NAME'
+              $functionAppName = Get-EnvValue 'AZURE_FUNCTION_NAME'
+              $acrLoginServer = Get-EnvValue 'AZURE_CONTAINER_REGISTRY_ENDPOINT'
+              $webImageName = Get-EnvValue 'SERVICE_BADGE_FRONT_END_APP_IMAGE_NAME'
+              $webImageTag = Get-EnvValue 'SERVICE_BADGE_FRONT_END_APP_IMAGE_TAG'
+              $functionImageName = Get-EnvValue 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_NAME'
+              $functionImageTag = Get-EnvValue 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_TAG'
+
+              $webImage = "{0}/{1}:{2}" -f $acrLoginServer, $webImageName, $webImageTag
+              $functionImage = "{0}/{1}:{2}" -f $acrLoginServer, $functionImageName, $functionImageTag
+
+
+
+              Write-Host "Setting web app $($webAppName) to use image $webImage"
+              az webapp config container set `
+                  --name $webAppName `
+                  --resource-group $resourceGroup `
+                  --container-image-name $webImage | Out-Null
+
+              az webapp config set `
+                  --resource-group $resourceGroup `
+                  --name $webAppName `
+                  --generic-configurations '{\"acrUseManagedIdentityCreds\": true}'
+
+
+              Write-Host "az functionapp config container set --name $($functionAppName) --resource-group $($resourceGroup) --image $($functionImage)"
+              az functionapp config container set --name $functionAppName --resource-group $resourceGroup --image $functionImage
+
+              Write-Host "Restarting web app and function app to apply container configuration"
+              az webapp restart --name $webAppName --resource-group $resourceGroup | Out-Null
+              az functionapp restart --name $functionAppName --resource-group $resourceGroup | Out-Null
+
+workflows:
+    up:
+        steps:
+            - azd: provision
+            - azd: package
+            - azd: deploy --all
