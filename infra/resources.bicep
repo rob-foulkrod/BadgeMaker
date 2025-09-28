@@ -154,9 +154,10 @@ module serverfarm 'br/public:avm/res/web/serverfarm:0.4.0' = {
     name: '${abbrs.webServerFarms}WebApp${resourceToken}'
     location: location
     tags: tags
-    kind: 'windows'
-    skuName: 'B3'
+    kind: 'linux'
+    skuName: 'P1v3'
     skuCapacity: 1
+    zoneRedundant: false
     diagnosticSettings: [
       {
         name: 'basicSetting'
@@ -169,7 +170,7 @@ module serverfarm 'br/public:avm/res/web/serverfarm:0.4.0' = {
 module blazorFrontEndWebApp 'br/public:avm/res/web/site:0.12.0' = {
   name: 'blazorFrontEndWebAppDeployment'
   params: {
-    kind: 'app'
+    kind: 'app,linux'
     tags: union(tags, {
       'azd-service-name': 'badge-front-end-app'
     })
@@ -192,6 +193,9 @@ module blazorFrontEndWebApp 'br/public:avm/res/web/site:0.12.0' = {
 
     siteConfig: {
       alwaysOn: true
+      ftpsState: 'Disabled'
+      http20Enabled: true
+      linuxFxVersion: 'DOTNETCORE|8.0'
       metadata: [
         {
           name: 'CURRENT_STACK'
@@ -200,6 +204,9 @@ module blazorFrontEndWebApp 'br/public:avm/res/web/site:0.12.0' = {
       ]
     }
     appSettingsKeyValuePairs: {
+      APPLICATIONINSIGHTS_CONNECTION_STRING: monitoring.outputs.applicationInsightsConnectionString
+      WEBSITES_PORT: '8080'
+      WEBSITES_ENABLE_APP_SERVICE_STORAGE: 'false'
       openai__deployment: 'dall-e-3'
       openai__endpoint: 'https://${aiAccount.outputs.name}.openai.azure.com/'
       servicebus__endpoint: '${serviceBus.outputs.name}.servicebus.windows.net'
@@ -256,7 +263,7 @@ module containerRegistry 'br/public:avm/res/container-registry/registry:0.1.1' =
   params: {
     name: '${abbrs.containerRegistryRegistries}${resourceToken}'
     location: location
-    acrAdminUserEnabled: true
+    acrAdminUserEnabled: false
     tags: tags
     publicNetworkAccess: 'Enabled'
     roleAssignments: [
@@ -401,14 +408,18 @@ module uploadBlobsScript 'br/public:avm/res/resources/deployment-script:0.5.0' =
   }
 }
 
-module badgeProcessingFunctionPlan 'br/public:avm/res/web/serverfarm:0.4.0' = {
+module badgeProcessingFunctionPlan 'br/public:avm/res/web/serverfarm:0.5.0' = {
   name: 'badgeProcessingFunctionPlanDeployment'
   params: {
-    kind: 'functionApp'
+    // Elastic Premium plan required for containerized Linux Functions
+    kind: 'functionapp'
     name: '${abbrs.webServerFarms}FunctionPlan${resourceToken}'
     location: location
     tags: tags
-    skuName: 'Y1' //Consumption plan
+    skuName: 'EP1'
+    skuCapacity: 1
+    reserved: true
+    zoneRedundant: false
     diagnosticSettings: [
       {
         name: 'basicSetting'
@@ -423,17 +434,21 @@ module badgeProcessingFunction 'br/public:avm/res/web/site:0.12.0' = {
   params: {
     // Required parameters
     kind: 'functionapp'
-    name: '${abbrs.webSitesFunctions}BadgeProcessingFunction${resourceToken}'
+    name: '${abbrs.webSitesFunctions}BPF${resourceToken}'
     tags: union(tags, { 'azd-service-name': 'badge-processing-function' })
     serverFarmResourceId: badgeProcessingFunctionPlan.outputs.resourceId
     appInsightResourceId: monitoring.outputs.applicationInsightsResourceId
     appSettingsKeyValuePairs: {
+      APPLICATIONINSIGHTS_CONNECTION_STRING: monitoring.outputs.applicationInsightsConnectionString
       AzureFunctionsJobHost__logging__logLevel__default: 'Trace'
+      AzureFunctionsJobHost__logging__Console__IsEnabled: 'true'
       FUNCTIONS_EXTENSION_VERSION: '~4'
       FUNCTIONS_WORKER_RUNTIME: 'dotnet-isolated'
       WEBSITE_USE_PLACEHOLDER_DOTNETISOLATED: 1
+      WEBSITES_ENABLE_APP_SERVICE_STORAGE: 'false'
+      WEBSITES_PORT: '8080'
+      AzureWebJobsFeatureFlags: 'EnableWorkerIndexing'
       badgeQueueName: '${abbrs.serviceBusNamespacesQueues}${resourceToken}'
-
       badgeservicebus__fullyQualifiedNamespace: '${serviceBus.outputs.name}.servicebus.windows.net'
       AzureWebJobsStorage__accountName: storageAccount.outputs.name
       AzureWebJobsStorage__blobUri: storageAccount.outputs.primaryBlobEndpoint
@@ -445,15 +460,35 @@ module badgeProcessingFunction 'br/public:avm/res/web/site:0.12.0' = {
     }
 
     siteConfig: {
-      netFrameworkVersion: 'v8.0'
-      numberOfWorkers: 1
-      workerSize: '0'
-      workerSizeId: 0
-      alwaysOn: false
-      use32BitWorkerProcess: false
+      http20Enabled: true
+      ftpsState: 'Disabled'
+      minimumElasticInstanceCount: 1
+      acrUseManagedIdentityCreds: true
+      linuxFxVersion: 'DOCKER|mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated8.0-appservice' //placeholder image
+      functionAppScaleLimit: 2
     }
     storageAccountResourceId: storageAccount.outputs.resourceId
     storageAccountUseIdentityAuthentication: true
+  }
+}
+
+module webAppAcrPull 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'webAppAcrPullAssignment'
+  params: {
+    principalId: blazorFrontEndWebApp.outputs.systemAssignedMIPrincipalId
+    resourceId: containerRegistry.outputs.resourceId
+    roleDefinitionId: '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    roleName: 'AcrPull'
+  }
+}
+
+module functionAcrPull 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'functionAcrPullAssignment'
+  params: {
+    principalId: badgeProcessingFunction.outputs.systemAssignedMIPrincipalId
+    resourceId: containerRegistry.outputs.resourceId
+    roleDefinitionId: '7f951dda-4ed3-4680-a7ca-43fe172d538d'
+    roleName: 'AcrPull'
   }
 }
 
@@ -502,3 +537,7 @@ module functionServiceBusDataReceiver 'br/public:avm/ptn/authorization/resource-
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.outputs.loginServer
 output AZURE_RESOURCE_BADGE_VIEW_APP_ID string = badgeViewApp.outputs.resourceId
 output AZURE_RESOURCE_BADGE_MAKER_ID string = blazorFrontEndWebApp.outputs.resourceId
+output AZURE_RESOURCE_BADGE_PROCESSING_FUNCTION_ID string = badgeProcessingFunction.outputs.resourceId
+output AZURE_FUNCTION_NAME string = badgeProcessingFunction.outputs.name
+output AZURE_WEBAPP_NAME string = blazorFrontEndWebApp.outputs.name
+
