@@ -17,6 +17,8 @@ builder.ConfigureFunctionsWebApplication();
 builder.Services
     .AddApplicationInsightsTelemetryWorkerService();
 
+builder.Services.AddHttpClient();
+
 builder.Services.AddSingleton(x =>
 {
     var configuration = builder.Configuration;
