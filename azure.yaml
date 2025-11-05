@@ -38,6 +38,25 @@ hooks:
               }
               $registryName = $acrLoginServer.Split('.')[0]
 
+              function Get-EnvValueSafe([string]$Key, [string]$DefaultValue = $null) {
+                  try {
+                      $value = (azd env get-value $Key 2>$null)
+                      if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($value)) {
+                          if ($DefaultValue -ne $null) {
+                              return $DefaultValue
+                          }
+                          return $null
+                      }
+                      return $value.Trim()
+                  }
+                  catch {
+                      if ($DefaultValue -ne $null) {
+                          return $DefaultValue
+                      }
+                      return $null
+                  }
+              }
+
               function Invoke-AcrBuild {
                   param(
                       [string]$ServicePath,
@@ -48,11 +67,8 @@ hooks:
 
                   Push-Location $ServicePath
                   try {
-                      $imageName = (azd env get-value $NameKey).Trim()
-                      if ([string]::IsNullOrWhiteSpace($imageName)) {
-                          $imageName = $DefaultImageName
-                      }
-                      $imageTag = (azd env get-value $TagKey).Trim()
+                      $imageName = Get-EnvValueSafe $NameKey $DefaultImageName
+                      $imageTag = Get-EnvValueSafe $TagKey 'latest'
                       if ([string]::IsNullOrWhiteSpace($imageTag)) {
                           $imageTag = (Get-Date -Format 'yyyyMMddHHmmss')
                       }
@@ -75,12 +91,23 @@ hooks:
           run: |
               $ErrorActionPreference = 'Stop'
 
-              function Get-EnvValue([string]$Key) {
-                  $value = (azd env get-value $Key 2>$null).Trim()
-                  if ([string]::IsNullOrWhiteSpace($value)) {
+              function Get-EnvValue([string]$Key, [string]$DefaultValue = $null) {
+                  try {
+                      $value = (azd env get-value $Key 2>$null)
+                      if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($value)) {
+                          if ($DefaultValue -ne $null) {
+                              return $DefaultValue
+                          }
+                          throw "Environment value '$Key' is not set. Run 'azd up' to provision resources."
+                      }
+                      return $value.Trim()
+                  }
+                  catch {
+                      if ($DefaultValue -ne $null) {
+                          return $DefaultValue
+                      }
                       throw "Environment value '$Key' is not set. Run 'azd up' to provision resources."
                   }
-                  return $value
               }
 
               function Get-ResourceInfo([string]$ResourceId) {
@@ -99,10 +126,10 @@ hooks:
               $webAppName = Get-EnvValue 'AZURE_WEBAPP_NAME'
               $functionAppName = Get-EnvValue 'AZURE_FUNCTION_NAME'
               $acrLoginServer = Get-EnvValue 'AZURE_CONTAINER_REGISTRY_ENDPOINT'
-              $webImageName = Get-EnvValue 'SERVICE_BADGE_FRONT_END_APP_IMAGE_NAME'
-              $webImageTag = Get-EnvValue 'SERVICE_BADGE_FRONT_END_APP_IMAGE_TAG'
-              $functionImageName = Get-EnvValue 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_NAME'
-              $functionImageTag = Get-EnvValue 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_TAG'
+              $webImageName = Get-EnvValue 'SERVICE_BADGE_FRONT_END_APP_IMAGE_NAME' 'badge-front-end-app'
+              $webImageTag = Get-EnvValue 'SERVICE_BADGE_FRONT_END_APP_IMAGE_TAG' 'latest'
+              $functionImageName = Get-EnvValue 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_NAME' 'badge-processing-function'
+              $functionImageTag = Get-EnvValue 'SERVICE_BADGE_PROCESSING_FUNCTION_IMAGE_TAG' 'latest'
 
               $webImage = "{0}/{1}:{2}" -f $acrLoginServer, $webImageName, $webImageTag
               $functionImage = "{0}/{1}:{2}" -f $acrLoginServer, $functionImageName, $functionImageTag
