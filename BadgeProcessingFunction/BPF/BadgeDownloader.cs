@@ -61,11 +61,25 @@ namespace BPF2
                     using var stream = await response.Content.ReadAsStreamAsync();
                     await blobClient.UploadAsync(stream, overwrite: true);
 
-                    await blobClient.SetMetadataAsync(new System.Collections.Generic.Dictionary<string, string>
+                    // Sanitize metadata values to ensure they're valid for Azure Blob Storage
+                    // Metadata must be ASCII and cannot contain control characters or newlines
+                    var sanitizedPrompt = SanitizeMetadataValue(content.UserPrompt);
+                    var sanitizedTimestamp = SanitizeMetadataValue(content.ApprovalTimeStamp);
+
+                    try
                     {
-                        { "approvaltimestamp", content.ApprovalTimeStamp },
-                        { "userprompt", content.UserPrompt }
-                    });
+                        await blobClient.SetMetadataAsync(new System.Collections.Generic.Dictionary<string, string>
+                        {
+                            { "approvaltimestamp", sanitizedTimestamp },
+                            { "userprompt", sanitizedPrompt }
+                        });
+                    }
+                    catch (Exception metadataEx)
+                    {
+                        // If metadata setting fails, log it but don't fail the entire operation
+                        // The badge image is already uploaded successfully
+                        _logger.LogWarning(metadataEx, $"Failed to set metadata for {blobName}, but image was uploaded successfully");
+                    }
 
                     _logger.LogInformation($"Successfully processed badge and saved as {blobName}");
                     
@@ -75,15 +89,59 @@ namespace BPF2
                 else
                 {
                     _logger.LogError($"Failed to download image from {content.Url}. Status: {response.StatusCode}");
+                    // Dead-letter the message (it will NOT be reprocessed after this)
                     await messageActions.DeadLetterMessageAsync(message, deadLetterReason: $"Failed to download image from {content.Url}. Status: {response.StatusCode}");
+                    return; // CRITICAL: Exit after dead-lettering to prevent fall-through to catch block
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing Service Bus message");
-                // Let the message retry by not completing it, unless it's a permanent error
-                throw;
+                
+                // Try to dead-letter the message for permanent errors
+                try
+                {
+                    await messageActions.DeadLetterMessageAsync(message, 
+                        deadLetterReason: "Processing failed with exception", 
+                        deadLetterErrorDescription: ex.Message);
+                    _logger.LogInformation("Message dead-lettered due to processing exception");
+                }
+                catch (Exception deadLetterEx)
+                {
+                    _logger.LogError(deadLetterEx, "Failed to dead-letter message, it will be retried");
+                    // If we can't dead-letter, let it retry by throwing
+                    throw;
+                }
             }
+        }
+
+        /// <summary>
+        /// Sanitizes a string value to be safe for Azure Blob Storage metadata.
+        /// Metadata values must be ASCII and cannot contain control characters.
+        /// </summary>
+        private static string SanitizeMetadataValue(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            // Remove or replace characters that are not valid in Azure Blob metadata
+            // Keep only printable ASCII characters (32-126) and replace others with space
+            var sanitized = new System.Text.StringBuilder(value.Length);
+            foreach (char c in value)
+            {
+                if (c >= 32 && c <= 126)
+                {
+                    sanitized.Append(c);
+                }
+                else
+                {
+                    sanitized.Append(' '); // Replace invalid characters with space
+                }
+            }
+
+            // Trim and limit length (metadata values have a max length of 8KB)
+            var result = sanitized.ToString().Trim();
+            return result.Length > 8000 ? result.Substring(0, 8000) : result;
         }
     }
 
