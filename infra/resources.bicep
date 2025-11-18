@@ -195,7 +195,7 @@ module blazorFrontEndWebApp 'br/public:avm/res/web/site:0.12.0' = {
       alwaysOn: true
       ftpsState: 'Disabled'
       http20Enabled: true
-      linuxFxVersion: 'DOTNETCORE|8.0'
+      linuxFxVersion: 'DOTNETCORE|10.0'
       metadata: [
         {
           name: 'CURRENT_STACK'
@@ -464,7 +464,7 @@ module badgeProcessingFunction 'br/public:avm/res/web/site:0.12.0' = {
       ftpsState: 'Disabled'
       minimumElasticInstanceCount: 1
       acrUseManagedIdentityCreds: true
-      linuxFxVersion: 'DOCKER|mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated8.0-appservice' //placeholder image
+      linuxFxVersion: 'DOCKER|mcr.microsoft.com/azure-functions/dotnet-isolated:4-dotnet-isolated10.0-appservice' //placeholder image
       functionAppScaleLimit: 2
     }
     storageAccountResourceId: storageAccount.outputs.resourceId
