@@ -12,20 +12,39 @@ public class BadgeGeneratorViewModel
 
     private readonly IOpenAIService openAIService;
     private readonly IServiceBusService serviceBusService;
+    private readonly IBlobStorageService blobStorageService;
 
     public string UserPrompt { get; set; } = "";
     public string? ImageUri { get; set; }
     public string Message { get; set; } = "";
+    public Func<Task>? OnStateChanged { get; set; }
+    public string SelectedQuality { get; set; } = "low";
 
-    private const string loadingMessage = "Loading...";
+    public static readonly (string Label, string Quality)[] QualityOptions =
+    [
+        ("Fast (low quality)", "low"),
+        ("Standard (medium quality)", "medium"),
+        ("High (high quality)", "high"),
+    ];
 
-    public BadgeGeneratorViewModel(IOpenAIService openAIService, IServiceBusService serviceBusService)
+    private bool _isLoading;
+
+    public BadgeGeneratorViewModel(IOpenAIService openAIService, IServiceBusService serviceBusService, IBlobStorageService blobStorageService)
     {
         this.openAIService = openAIService;
         this.serviceBusService = serviceBusService;
+        this.blobStorageService = blobStorageService;
     }
 
-    public bool IsLoading => Message == loadingMessage;
+    public bool IsLoading => _isLoading;
+
+    private async Task UpdateMessage(string message, bool loading = false)
+    {
+        Message = message;
+        _isLoading = loading;
+        if (OnStateChanged != null)
+            await OnStateChanged.Invoke();
+    }
 
     public bool CanApprove => ImageUri != null && serviceBusService.IsConfigured;
 
@@ -40,7 +59,7 @@ public class BadgeGeneratorViewModel
         }
         else
         {
-            Message = loadingMessage;
+            await UpdateMessage("Generating image...", loading: true);
         }
 
         try
@@ -48,21 +67,26 @@ public class BadgeGeneratorViewModel
 
             ImageGenerationOptions options = new ImageGenerationOptions() { 
                 Size = GeneratedImageSize.W1024xH1024,
-                Quality = GeneratedImageQuality.High,
-                ResponseFormat = GeneratedImageFormat.Uri
+                Quality = new GeneratedImageQuality(SelectedQuality)
             };
 
+            var imageData = await openAIService.GenerateImageAsync(UserPrompt, options);
 
-            ImageUri = await openAIService.GenerateImageUriAsync(UserPrompt, options);
-            Message = "";
+            await UpdateMessage("Uploading to storage...", loading: true);
+            ImageUri = await blobStorageService.UploadBadgeImageAsync(imageData);
+            await UpdateMessage("");
         }
         catch (RequestFailedException ex) when (ex.Status == 429)
         {
-            Message = "You have made too many requests. Please wait a while before trying again.";
+            await UpdateMessage("You have made too many requests. Please wait a while before trying again.");
+        }
+        catch (RequestFailedException ex)
+        {
+            await UpdateMessage($"A service error occurred (HTTP {ex.Status}): {ex.Message}");
         }
         catch (Exception ex)
         {
-            Message = $"An error occurred: {ex.Message}";
+            await UpdateMessage($"An error occurred: {ex.Message}");
         }
     }
 
@@ -75,23 +99,22 @@ public class BadgeGeneratorViewModel
             return;
         }
 
-        Message = loadingMessage;
+        var imageUrl = ImageUri;
+        await UpdateMessage("Approving badge...", loading: true);
 
         var messageBody = new
         {
-            url = ImageUri, // Assuming the first image is the one to be approved
-            approvalTimeStamp = DateTime.UtcNow.ToString("o"), // ISO 8601 format
+            url = imageUrl,
+            approvalTimeStamp = DateTime.UtcNow.ToString("o"),
             userPrompt = UserPrompt
         };
 
         string jsonMessage = JsonSerializer.Serialize(messageBody);
 
-        // create a Service Bus message
-
         await serviceBusService.SendMessageAsync(jsonMessage);
 
-        Message = "Image approved and message sent to Service Bus.";
         ImageUri = null;
+        await UpdateMessage("Image approved and message sent to Service Bus.");
 
     }
 }

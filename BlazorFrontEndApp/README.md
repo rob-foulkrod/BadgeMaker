@@ -4,8 +4,8 @@
 ## Configuring Badge Maker
 
 To set up Badge Maker, follow these steps to provide the necessary configuration details:
-   - Describe your DALL-E 3 deployment. Include relevant information such as the API endpoint, authentication credentials, and any other required parameters.
-   - Ensure that Badge Maker can communicate with your DALL-E 3 instance.
+   - Describe your gpt-image-1.5 deployment. Include relevant information such as the API endpoint, authentication credentials, and any other required parameters.
+   - Ensure that Badge Maker can communicate with your gpt-image-1.5 instance.
 
 1. **Create a `secrets.json` File:**
    - Using the cli or visual studio, create a secrets.josn file
@@ -20,8 +20,7 @@ To set up Badge Maker, follow these steps to provide the necessary configuration
     ```json
     {
       "openai": {
-        "apiKey": "[openaikey]",
-        "deployment": "[dall-e-3-deployment-name]",
+        "deployment": "[gpt-image-1.5-deployment-name]",
         "endpoint": "https://[instancename].openai.azure.com/"
       },
       "servicebus": {
@@ -41,7 +40,7 @@ Or once deployed to an app service, the configuration can look like this:
   },
   {
     "name": "openai__deployment",
-    "value": "[dall-e-3-deployment-name]",
+    "value": "[gpt-image-1.5-deployment-name]",
     "slotSetting": false
   },
   {

@@ -6,44 +6,74 @@
 @using static System.Environment;
 @using System.Text.Json
 @inject BadgeGeneratorViewModel viewModel
+@implements IDisposable
 
 <PageTitle>Badge Generator</PageTitle>
 
 <h1>Badge Generator</h1>
 
-<p>Describe the badge that you would like to see. We are using a service that will restrict to 3 calls a minute, so be patient</p>
+<p>Describe the badge that you would like to see. Image generation may take a moment, so be patient.</p>
 
 <FluentStack Orientation="Orientation.Vertical">
     <FluentTextArea Label="Prompt" id="badgePrompt" class="form-control" Value="@viewModel.UserPrompt" ValueChanged="@((string val) => viewModel.UserPrompt = val)" Rows="3" Cols="100" Resize="TextAreaResize.Both"></FluentTextArea>
-    <FluentButton class="btn btn-primary" @onclick="viewModel.GenerateBadge">Generate Badge</FluentButton>
+    <FluentSelect Label="Image Quality" TOption="string" Value="@viewModel.SelectedQuality" ValueChanged="@OnQualityChanged">
+        @foreach (var opt in BadgeGeneratorViewModel.QualityOptions)
+        {
+            <FluentOption Value="@opt.Quality" Selected="@(opt.Quality == viewModel.SelectedQuality)">@opt.Label</FluentOption>
+        }
+    </FluentSelect>
+    <FluentButton class="btn btn-primary" @onclick="GenerateBadge">Generate Badge</FluentButton>
 </FluentStack>
 
-@if (viewModel.ImageUri == null)
+@if (viewModel.IsLoading)
 {
-    if (viewModel.IsLoading)
-    {
-        
-        <FluentProgressRing></FluentProgressRing>
-        <p><em>@viewModel.Message</em></p>
-    }
-    else
-    {
-        <p><em>@viewModel.Message</em></p>
-    }
+    <FluentProgressRing></FluentProgressRing>
+    <p><em>@viewModel.Message</em></p>
 }
-else if (@viewModel.ImageUri != null)
+else if (!string.IsNullOrEmpty(viewModel.Message))
 {
-    //wrap in div to allow for multiple images
+    <p><em>@viewModel.Message</em></p>
+}
+
+@if (viewModel.ImageUri != null)
+{
     <FluentStack Orientation="Orientation.Horizontal">
 
         <img src="@viewModel.ImageUri" alt="Generated Image" width="512" height="512" />
 
-        @if (viewModel.CanApprove)
+        @if (viewModel.CanApprove && !viewModel.IsLoading)
         {
             <div>
                 <p>Click the Approve Button, if you approve this new badge.</p>
-                <FluentButton class="btn btn-primary" @onclick="viewModel.ApproveImage">Approve</FluentButton>
+                <FluentButton class="btn btn-primary" @onclick="ApproveImage">Approve</FluentButton>
             </div>
         }
     </FluentStack>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        viewModel.OnStateChanged = async () => await InvokeAsync(StateHasChanged);
+    }
+
+    private void OnQualityChanged(string value)
+    {
+        viewModel.SelectedQuality = value;
+    }
+
+    private async Task GenerateBadge()
+    {
+        await viewModel.GenerateBadge();
+    }
+
+    private async Task ApproveImage()
+    {
+        await viewModel.ApproveImage();
+    }
+
+    public void Dispose()
+    {
+        viewModel.OnStateChanged = null;
+    }
 }

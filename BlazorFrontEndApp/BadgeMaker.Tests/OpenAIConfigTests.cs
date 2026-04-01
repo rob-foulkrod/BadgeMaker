@@ -5,7 +5,7 @@ namespace BadgeMaker.Tests;
 public class OpenAIConfigTests
 {
     [Fact]
-    public void IsValid_ReturnsFalse_WhenApiKeyAndEndpointAreNotSet()
+    public void IsConfigured_ReturnsFalse_WhenNothingIsSet()
     {
         // Arrange
         var config = new OpenAIConfig();
@@ -14,27 +14,11 @@ public class OpenAIConfigTests
         bool isValid = config.IsConfigured;
 
         // Assert
-        Assert.False(isValid, "Config should be invalid when both ApiKey and Endpoint are not set.");
+        Assert.False(isValid, "Config should be invalid when Endpoint and Deployment are not set.");
     }
 
     [Fact]
-    public void IsValid_ReturnsFalse_WhenOnlyApiKeyIsSet()
-    {
-        // Arrange
-        var config = new OpenAIConfig
-        {
-            apiKey = "some-api-key"
-        };
-
-        // Act
-        bool isValid = config.IsConfigured;
-
-        // Assert
-        Assert.False(isValid, "Config should be invalid when only ApiKey is set.");
-    }
-
-    [Fact]
-    public void IsValid_ReturnsFalse_WhenOnlyEndpointIsSet()
+    public void IsConfigured_ReturnsFalse_WhenOnlyEndpointIsSet()
     {
         // Arrange
         var config = new OpenAIConfig
@@ -50,12 +34,27 @@ public class OpenAIConfigTests
     }
 
     [Fact]
-    public void IsValid_ReturnsTrue_WhenApiKeyEndpointAndDeploymentAreSet()
+    public void IsConfigured_ReturnsFalse_WhenOnlyDeploymentIsSet()
     {
         // Arrange
         var config = new OpenAIConfig
         {
-            apiKey = "some-api-key",
+            deployment = "some-deployment"
+        };
+
+        // Act
+        bool isValid = config.IsConfigured;
+
+        // Assert
+        Assert.False(isValid, "Config should be invalid when only Deployment is set.");
+    }
+
+    [Fact]
+    public void IsConfigured_ReturnsTrue_WhenEndpointAndDeploymentAreSet()
+    {
+        // Arrange
+        var config = new OpenAIConfig
+        {
             endpoint = "https://api.example.com",
             deployment = "some-deployment"
         };
@@ -64,6 +63,6 @@ public class OpenAIConfigTests
         bool isValid = config.IsConfigured;
 
         // Assert
-        Assert.True(isValid, "Config should be valid when ApiKey, Endpoint, and Deployment are all set.");
+        Assert.True(isValid, "Config should be valid when Endpoint and Deployment are both set.");
     }
 }

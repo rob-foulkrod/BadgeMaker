@@ -17,7 +17,7 @@ public class OpenAIService : IOpenAIService
         this.openAIConfig = openAIConfig;
     }
 
-    public async Task<string> GenerateImageUriAsync(string prompt, ImageGenerationOptions options)
+    public async Task<BinaryData> GenerateImageAsync(string prompt, ImageGenerationOptions options)
     {
         var basePrompt = """
                 Create a circular badge celebrating the completion of a specific learning module. 
@@ -52,7 +52,7 @@ public class OpenAIService : IOpenAIService
 
         var imageGenerations = await client.GetImageClient(deployment).GenerateImageAsync(basePrompt + prompt, options);
 
-        return imageGenerations.Value.ImageUri?.ToString() ?? string.Empty;
+        return imageGenerations.Value.ImageBytes;
 
     }
 }

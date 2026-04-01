@@ -1,7 +1,7 @@
 # BadgeMaker Solution - Copilot Instructions
 
 ## Solution Overview
-BadgeMaker is a multi-tier application for creating and managing digital badges using Azure AI Services (DALL-E 3). The solution consists of three interconnected applications that work together to create, process, and display AI-generated badges.
+BadgeMaker is a multi-tier application for creating and managing digital badges using Azure AI Services (gpt-image-1.5). The solution consists of three interconnected applications that work together to create, process, and display AI-generated badges.
 
 ## Architecture Components
 
@@ -11,14 +11,14 @@ BadgeMaker is a multi-tier application for creating and managing digital badges 
 **Purpose:** Front-end application for badge design and generation
 
 #### Key Features:
-- Interactive badge generator using DALL-E 3
+- Interactive badge generator using gpt-image-1.5
 - Real-time badge preview
 - Approval workflow that sends messages to Azure Service Bus
 - Fluent UI components for modern interface
 
 #### Key Files:
 - `Components/Pages/BadgeGenerator.razor` - Main badge generation UI
-- `Components/Services/OpenAIService.cs` - DALL-E 3 integration
+- `Components/Services/OpenAIService.cs` - gpt-image-1.5 integration
 - `Components/Services/ServiceBusService.cs` - Queue message handling
 - `Components/Models/BadgeGeneratorViewModel.cs` - View model for badge generation
 
@@ -33,7 +33,7 @@ BadgeMaker is a multi-tier application for creating and managing digital badges 
 {
   "openai": {
     "apiKey": "[openai-api-key]",
-    "deployment": "[dall-e-3-deployment-name]",
+    "deployment": "[gpt-image-1.5-deployment-name]",
     "endpoint": "https://[instance-name].openai.azure.com/"
   },
   "servicebus": {
@@ -50,7 +50,7 @@ BadgeMaker is a multi-tier application for creating and managing digital badges 
 
 #### Key Features:
 - Service Bus trigger for processing badge approval messages
-- Downloads images from DALL-E temporary storage
+- Downloads images from Azure OpenAI temporary storage
 - Stores badges permanently in Azure Blob Storage
 - Managed identity authentication for Azure services
 
@@ -85,9 +85,9 @@ BadgeMaker is a multi-tier application for creating and managing digital badges 
 
 ## Data Flow
 
-1. **Badge Creation**: User describes badge in BlazorFrontEndApp → DALL-E 3 generates image
+1. **Badge Creation**: User describes badge in BlazorFrontEndApp → gpt-image-1.5 generates image
 2. **Approval**: User approves badge → Message sent to Service Bus queue
-3. **Processing**: Azure Function triggered → Downloads image from DALL-E → Stores in Blob Storage
+3. **Processing**: Azure Function triggered → Downloads image from Azure OpenAI → Stores in Blob Storage
 4. **Display**: BadgeViewApp reads from Blob Storage → Displays all approved badges
 
 ## Deployment
@@ -95,7 +95,7 @@ BadgeMaker is a multi-tier application for creating and managing digital badges 
 ### Azure Resources Required:
 - Azure App Service (for BlazorFrontEndApp and BadgeViewApp)
 - Azure Function App (for BadgeProcessingFunction)
-- Azure OpenAI Service (DALL-E 3 deployment)
+- Azure OpenAI Service (gpt-image-1.5 deployment)
 - Azure Service Bus (namespace and queue)
 - Azure Storage Account (for badge storage)
 - Azure Application Insights (monitoring)
@@ -135,7 +135,7 @@ azd up
 - **Framework**: .NET 8
 - **Frontend**: Blazor Server with Fluent UI
 - **Backend**: Azure Functions (Isolated worker)
-- **AI Service**: Azure OpenAI (DALL-E 3)
+- **AI Service**: Azure OpenAI (gpt-image-1.5)
 - **Messaging**: Azure Service Bus
 - **Storage**: Azure Blob Storage
 - **Monitoring**: Application Insights
@@ -143,7 +143,7 @@ azd up
 - **IaC**: Bicep/Azure Developer CLI
 
 ## API Rate Limits
-- DALL-E 3 service is limited to 3 calls per minute
+- gpt-image-1.5 service may be rate limited depending on deployment SKU
 - Badge generation includes retry logic for rate limit handling
 
 ## Security Considerations
@@ -160,7 +160,7 @@ azd up
 
 ### Badge Generation Issues:
 - Rate limiting: Wait 20 seconds between generation attempts
-- Image not loading: Check DALL-E endpoint and API key configuration
+- Image not loading: Check Azure OpenAI endpoint and API key configuration
 
 ### Processing Function Issues:
 - Messages not processing: Verify Service Bus connection and queue name
@@ -169,17 +169,17 @@ azd up
 ## Key Business Logic
 
 ### Badge Approval Workflow:
-1. Badge generated via DALL-E 3
+1. Badge generated via gpt-image-1.5
 2. User reviews generated badge
 3. On approval, badge URL and metadata sent to Service Bus
-4. Function downloads from temporary DALL-E storage (URLs expire)
+4. Function downloads from blob storage
 5. Badge permanently stored in Azure Blob Storage
 6. Badge available in BadgeViewApp
 
 ### Message Format (Service Bus):
 ```json
 {
-  "imageUri": "https://dalle-url...",
+  "imageUri": "https://storage-url...",
   "prompt": "user's badge description",
   "timestamp": "2025-09-24T00:00:00Z"
 }
