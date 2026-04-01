@@ -11,6 +11,9 @@
     "deployImages": {
       "value": "true"
     },
+    "aiLocation": {
+      "value": "${AZURE_AI_LOCATION}"
+    },
     "badgeViewAppExists": {
       "value": "${SERVICE_BADGE_VIEW_APP_RESOURCE_EXISTS=false}"
     },

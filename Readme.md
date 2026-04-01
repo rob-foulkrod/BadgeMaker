@@ -13,9 +13,7 @@ The BadgeMaker is a Blazor front-end application that provides a user-friendly i
  
 ### Requires locally
 - Docker Desktop
-- Dotnet 8 sdk
-
-Deploy to a Dall-e-3 Standard compatable region
+- Dotnet 10 sdk
 
 ## 🚀 Deploying the scenario in 4 steps:
 
@@ -36,34 +34,36 @@ azd init -t rob-foulkrod/BadgeMaker
 azd up
 ```
 
+During deployment, you will be prompted to select **two Azure locations**:
+- **Primary Location** — The region for all general resources (App Services, Storage, Service Bus, etc.)
+- **AI Location** — The region for the OpenAI/gpt-image-1.5 model deployment. Not all regions support this model; **eastus2** and **swedencentral** are recommended.
+
 ⏩ Note: you can delete the deployed scenario from the Azure Portal, or by running ```azd down``` from within the initiated folder.
 
 ## What is the demo scenario about?
 
 BadgeMaker Project Description
-This project streamlines the creation and processing of digital badges using Dall-e-3 for badge creation. The system comprises three main components:
-
 ### BadgeMaker Project Description
 
-This project streamlines the creation and processing of digital badges using Dall-e-3 for badge creation. The system comprises three main components:
+This project streamlines the creation and processing of digital badges using the **gpt-image-1.5** model for badge creation. The system comprises three main components:
 
 1. **BadgeMaker (BlazorFrontEndApp)**
    - A Blazor front-end application for designing and generating digital badges.
    - Users can customize badges with various templates, colors, and text.
    - **Project File**: `BlazorFrontEndApp/BadgeMaker.sln`
-   - **Framework**: .NET 8
+   - **Framework**: .NET 10
 
 2. **BadgeProcessingFunction**
    - A backend service for processing badge data, storing information, generating unique identifiers, and integrating with external systems.
    - **Project File**: `BadgeProcessingFunction/BPF/BPF2.csproj`
-   - **Framework**: .NET 8
+   - **Framework**: .NET 10
 
 3. **BadgeViewApp**
    - Displays digital badges created by the BadgeMaker and approved by the BadgeProcessingFunction.
    - **Project File**: `BadgeViewApp/BadgeViewApp.sln`
-   - **Framework**: .NET 8
+   - **Framework**: .NET 10
 
-Once a badge is created and approved, it is added to a message queue, where an Azure Function downloads it to a Storage Account. The View App shows all approved badges. For deployment, it requires Docker Desktop and .NET 8 SDK, and works with the Azure Developer CLI.
+Once a badge is created and approved, it is added to a message queue, where an Azure Function downloads it to a Storage Account. The View App shows all approved badges. For deployment, it requires Docker Desktop and .NET 10 SDK, and works with the Azure Developer CLI.
 
 
 ## 💭 Feedback and Contributing

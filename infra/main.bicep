@@ -18,6 +18,16 @@ param badgeViewAppExists bool = false
 
 param deployImages bool = true
 
+@description('Location for the AI/OpenAI account (may differ from primary location due to model availability)')
+@metadata({
+  azd: {
+    type: 'location'
+    displayName: 'AI Location'
+    description: 'Select an Azure region for the OpenAI/gpt-image-1.5 deployment. Not all regions support this model — eastus2 and swedencentral are recommended.'
+  }
+})
+param aiLocation string
+
 var tags = {
   'azd-env-name': environmentName
   SecurityControl: 'Ignore'
@@ -41,6 +51,7 @@ module resources './resources.bicep' = {
     badgeViewAppDefinition: badgeViewAppDefinition
     badgeViewAppExists: badgeViewAppExists
     deployImages: deployImages
+    aiLocation: aiLocation
   }
 }
 

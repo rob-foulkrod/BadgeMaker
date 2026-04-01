@@ -11,6 +11,9 @@ param badgeViewAppExists bool
 @description('Deploy images to the storage account from the GitHub repo')
 param deployImages bool = true
 
+@description('Location for the AI/OpenAI account (may differ from primary location due to model availability)')
+param aiLocation string
+
 var abbrs = loadJsonContent('./abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 
@@ -38,10 +41,10 @@ module monitoringMetricsPublisher 'br/public:avm/ptn/authorization/resource-role
   }
 }
 
-module aiAccount 'br/public:avm/res/cognitive-services/account:0.9.0' = {
+module aiAccount 'br/public:avm/res/cognitive-services/account:0.14.2' = {
   name: 'aiAccountDeployment'
   params: {
-    kind: 'OpenAI'
+    kind: 'AIServices'
     name: '${abbrs.cognitiveServicesAccounts}${resourceToken}'
     tags: tags
     // Managed Identity Authentication doesn't work without a custom subdomain
@@ -50,17 +53,16 @@ module aiAccount 'br/public:avm/res/cognitive-services/account:0.9.0' = {
       {
         model: {
           format: 'OpenAI'
-          name: 'dall-e-3'
-          version: '3.0'
+          name: 'gpt-image-1.5'
         }
-        name: 'dall-e-3'
+        name: 'gpt-image-1.5'
         sku: {
           capacity: 1
-          name: 'Standard'
+          name: 'GlobalStandard'
         }
       }
     ]
-    location: location
+    location: aiLocation
 
     publicNetworkAccess: 'Enabled'
     disableLocalAuth: false
@@ -119,6 +121,10 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.14.3' = {
       containers: [
         {
           name: 'badges'
+          publicAccess: 'None'
+        }
+        {
+          name: 'badges-staging'
           publicAccess: 'None'
         }
       ]
@@ -207,8 +213,9 @@ module blazorFrontEndWebApp 'br/public:avm/res/web/site:0.12.0' = {
       APPLICATIONINSIGHTS_CONNECTION_STRING: monitoring.outputs.applicationInsightsConnectionString
       WEBSITES_PORT: '8080'
       WEBSITES_ENABLE_APP_SERVICE_STORAGE: 'false'
-      openai__deployment: 'dall-e-3'
-      openai__endpoint: 'https://${aiAccount.outputs.name}.openai.azure.com/'
+      openai__deployment: 'gpt-image-1.5'
+      openai__endpoint: aiAccount.outputs.endpoint
+      storage__blobEndpoint: storageAccount.outputs.primaryBlobEndpoint
       servicebus__endpoint: '${serviceBus.outputs.name}.servicebus.windows.net'
       servicebus__queueName: '${abbrs.serviceBusNamespacesQueues}${resourceToken}'
     }
@@ -225,6 +232,18 @@ module servicebusContributor 'br/public:avm/ptn/authorization/resource-role-assi
     resourceId: serviceBus.outputs.resourceId
     roleDefinitionId: '69a216fc-b8fb-44d8-bc22-1f3c2cd27a39'
     roleName: 'Azure Service Bus Data Sender'
+  }
+}
+
+//Storage Blob Data Contributor for Blazor front-end (upload generated images + generate SAS tokens)
+//ba92f5b4-2d11-453d-a403-e96b0029c9fe
+module blazorStorageBlobContributor 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.1' = {
+  name: 'blazorStorageBlobContributorDeployment'
+  params: {
+    principalId: blazorFrontEndWebApp.outputs.systemAssignedMIPrincipalId
+    resourceId: storageAccount.outputs.resourceId
+    roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    roleName: 'Storage Blob Data Contributor'
   }
 }
 
