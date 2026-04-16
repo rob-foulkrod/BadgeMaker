@@ -65,4 +65,27 @@ public class OpenAIConfigTests
         // Assert
         Assert.True(isValid, "Config should be valid when Endpoint and Deployment are both set.");
     }
+
+    [Fact]
+    public void BasePrompt_DefaultsToDefaultBasePrompt()
+    {
+        // Arrange
+        var config = new OpenAIConfig();
+
+        // Act & Assert
+        Assert.Equal(OpenAIConfig.DefaultBasePrompt, config.basePrompt);
+    }
+
+    [Fact]
+    public void BasePrompt_CanBeOverridden()
+    {
+        // Arrange
+        var config = new OpenAIConfig
+        {
+            basePrompt = "Custom prompt: "
+        };
+
+        // Act & Assert
+        Assert.Equal("Custom prompt: ", config.basePrompt);
+    }
 }
